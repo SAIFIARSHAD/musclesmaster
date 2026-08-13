@@ -1,0 +1,42 @@
+{
+    "name": "backend-api",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+        "build": "tsc",
+        "start": "node dist/server.js"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "dependencies": {
+        "bcryptjs": "^3.0.3",
+        "cookie-parser": "^1.4.7",
+        "cors": "^2.8.6",
+        "dotenv": "^16.0.3",
+        "express": "^5.2.1",
+        "express-validator": "^7.3.2",
+        "helmet": "^8.3.0",
+        "ioredis": "^6.0.0",
+        "jsonwebtoken": "^9.0.3",
+        "mongodb": "^7.5.0",
+        "mongoose": "^9.9.2",
+        "winston": "^3.19.0"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.6",
+        "@types/cookie-parser": "^1.4.10",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/node": "^22.20.1",
+        "eslint": "^9.39.5",
+        "prettier": "^3.9.6",
+        "ts-node-dev": "^2.0.0",
+        "typescript": "^5.9.2"
+    }
+}
