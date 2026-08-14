@@ -11,5 +11,9 @@ export interface IUser extends Document {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  resetOtp?: string;
+resetOtpExpiry?: Date;
+resetVerifiedToken?: string;
+resetVerifiedTokenExpiry?: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }

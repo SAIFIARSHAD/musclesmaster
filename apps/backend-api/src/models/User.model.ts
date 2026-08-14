@@ -40,6 +40,23 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
+resetOtp: {
+  type: String,
+  required: false,
+},
+resetOtpExpiry: {
+  type: Date,
+  required: false,
+},
+resetVerifiedToken: {
+  type: String,
+  required: false,
+},
+resetVerifiedTokenExpiry: {
+  type: Date,
+  required: false,
+},
+
   },
   { timestamps: true }
 );
