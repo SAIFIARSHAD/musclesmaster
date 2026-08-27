@@ -61,7 +61,7 @@ export default function Login() {
             <input
               {...register('email')}
               type="email"
-              autoComplete="email"
+              autoComplete="off"
               className="w-full px-4 py-2 bg-[#0d0d0d] border border-[#333] rounded text-white focus:outline-none focus:border-orange-500"
             />
             {errors.email && (
@@ -78,7 +78,7 @@ export default function Login() {
               <input
                 {...register('password')}
                 type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
+                autoComplete="new-password"
                 className="w-full px-4 py-2 pr-12 bg-[#0d0d0d] border border-[#333] rounded text-white focus:outline-none focus:border-orange-500"
               />
 

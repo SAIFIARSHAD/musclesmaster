@@ -3,6 +3,8 @@ import { User } from '../models/User.model';
 import { AuditLog } from '../models/AuditLog.model';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt';
 import { generateOtp, hashOtp } from '../utils/otp';
+import { sendEmail } from './email.service';
+import { resetPasswordEmailTemplate } from '../templates/resetPasswordEmail';
 
 export const loginUser = async (email: string, password: string) => {
   const user = await User.findOne({ email: email.toLowerCase() });
@@ -67,6 +69,25 @@ export const loginUser = async (email: string, password: string) => {
   };
 };
 
+// export const forgotPassword = async (email: string) => {
+//   const user = await User.findOne({ email: email.toLowerCase() });
+
+//   if (!user) {
+//     throw new Error('No account found with this email');
+//   }
+
+//   const otp = generateOtp();
+//   const hashedOtp = hashOtp(otp);
+
+//   user.resetOtp = hashedOtp;
+//   user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+//   await user.save();
+
+//   console.log(`[DEV ONLY] OTP for ${email}: ${otp}`);
+
+//   return { email: user.email };
+// };
+
 export const forgotPassword = async (email: string) => {
   const user = await User.findOne({ email: email.toLowerCase() });
 
@@ -79,9 +100,29 @@ export const forgotPassword = async (email: string) => {
 
   user.resetOtp = hashedOtp;
   user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  user.resetVerifiedToken = undefined;
+  user.resetVerifiedTokenExpiry = undefined;
   await user.save();
 
-  console.log(`[DEV ONLY] OTP for ${email}: ${otp}`);
+  const { subject, html } = resetPasswordEmailTemplate(user.name, otp);
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject,
+      html,
+    });
+  } catch (error) {
+    user.resetOtp = undefined;
+    user.resetOtpExpiry = undefined;
+    await user.save();
+
+    throw new Error('Unable to send reset OTP. Please try again.');
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[DEV ONLY] OTP for ${user.email}: ${otp}`);
+  }
 
   return { email: user.email };
 };
