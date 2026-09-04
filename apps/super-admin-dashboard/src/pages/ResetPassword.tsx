@@ -90,10 +90,11 @@ export default function ResetPassword() {
     try {
       setError('');
       setMessage('');
-      await resetPasswordApi({
-        verifiedToken,
-        newPassword: data.newPassword,
-      });
+     await resetPasswordApi({
+  verifiedToken,
+  newPassword: data.newPassword,
+  confirmPassword: data.confirmPassword,
+});
       setMessage('Password reset successful. Redirecting to login…');
       setTimeout(() => navigate('/login'), 1500);
     } catch (err: any) {

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { loginUser } from '../services/auth.service';
-import { forgotPassword, verifyResetOtp, resetPassword } from '../services/auth.service';
+import {loginUser, forgotPassword, verifyResetOtp, resetPassword, changePassword,} from '../services/auth.service';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -84,18 +84,99 @@ export const verifyOtpHandler = async (req: Request, res: Response) => {
 
 export const resetPasswordHandler = async (req: Request, res: Response) => {
   try {
-    const { verifiedToken, newPassword } = req.body;
-    if (!verifiedToken || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Token and new password are required' });
+    const { verifiedToken, newPassword, confirmPassword } = req.body;
+
+    if (!verifiedToken || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verified token, new password and confirm password are required',
+      });
     }
+
     if (newPassword.length < 8) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters',
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password and confirm password do not match',
+      });
     }
 
     await resetPassword(verifiedToken, newPassword);
 
-    return res.status(200).json({ success: true, message: 'Password reset successful' });
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset successful',
+    });
   } catch (error: any) {
-    return res.status(400).json({ success: false, message: error.message });
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'Password reset failed',
+    });
+  }
+};
+
+export const changePasswordHandler = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password, new password and confirm password are required',
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters',
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password and confirm password do not match',
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be different from current password',
+      });
+    }
+
+    if (!req.user?.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
+
+    await changePassword(
+      req.user.userId,
+      currentPassword,
+      newPassword
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password changed successfully',
+    });
+  } catch (error: any) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'Unable to change password',
+    });
   }
 };
