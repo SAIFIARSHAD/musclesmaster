@@ -1,3 +1,4 @@
+
 import nodemailer from 'nodemailer';
 
 type SendEmailParams = {
@@ -6,38 +7,44 @@ type SendEmailParams = {
   html: string;
 };
 
-const smtpConfigured =
-  Boolean(process.env.SMTP_HOST) &&
-  Boolean(process.env.SMTP_PORT) &&
-  Boolean(process.env.SMTP_USER) &&
-  Boolean(process.env.SMTP_PASS);
+const createTransporter = () => {
+  const host = process.env.SMTP_HOST?.trim();
+  const port = Number(process.env.SMTP_PORT);
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS?.trim();
+  const secure = process.env.SMTP_SECURE?.trim().toLowerCase() === 'true';
 
-const transporter = smtpConfigured
-  ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    })
-  : null;
+  if (!host || !process.env.SMTP_PORT || !user || !pass || !Number.isFinite(port) || port <= 0) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: {
+      user,
+      pass,
+    },
+  });
+};
 
 export const sendEmail = async ({
   to,
   subject,
   html,
 }: SendEmailParams): Promise<void> => {
+  // Read the environment at send time rather than module import time.
+  const transporter = createTransporter();
+
   if (!transporter) {
-    console.warn(
-      '[EMAIL NOT SENT] SMTP is not configured. Add SMTP variables to .env.'
+    throw new Error(
+      'SMTP is not configured. Check SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS in the backend .env file.'
     );
-    return;
   }
 
   await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    from: process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim(),
     to,
     subject,
     html,

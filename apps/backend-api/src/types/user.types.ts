@@ -9,11 +9,17 @@ export interface IUser extends Document {
   role: UserRole;
   branchId?: string;
   isActive: boolean;
+
+  resetOtp?: string;
+  resetOtpExpiry?: Date;
+  resetVerifiedToken?: string;
+  resetVerifiedTokenExpiry?: Date;
+
+  failedLoginAttempts: number;
+  lockUntil?: Date;
+
   createdAt: Date;
   updatedAt: Date;
-  resetOtp?: string;
-resetOtpExpiry?: Date;
-resetVerifiedToken?: string;
-resetVerifiedTokenExpiry?: Date;
+
   comparePassword(candidatePassword: string): Promise<boolean>;
 }

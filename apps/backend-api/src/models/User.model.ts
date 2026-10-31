@@ -40,31 +40,42 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
-resetOtp: {
-  type: String,
-  required: false,
-},
-resetOtpExpiry: {
-  type: Date,
-  required: false,
-},
-resetVerifiedToken: {
-  type: String,
-  required: false,
-},
-resetVerifiedTokenExpiry: {
-  type: Date,
-  required: false,
-},
 
+    resetOtp: {
+      type: String,
+      required: false,
+    },
+    resetOtpExpiry: {
+      type: Date,
+      required: false,
+    },
+    resetVerifiedToken: {
+      type: String,
+      required: false,
+    },
+    resetVerifiedTokenExpiry: {
+      type: Date,
+      required: false,
+    },
+
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+      required: false,
+    },
   },
   { timestamps: true }
 );
 
 userSchema.pre('save', async function () {
-  if (this.isModified('password')) {
-    this.password = await hashPassword(this.password);
+  if (!this.isModified('password')) {
+    return;
   }
+
+  this.password = await hashPassword(this.password);
 });
 
 userSchema.methods.comparePassword = async function (

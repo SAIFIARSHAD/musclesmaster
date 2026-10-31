@@ -1,23 +1,68 @@
+
 import mongoose, { Schema, Document } from 'mongoose';
 
+export type AuditStatus = 'SUCCESS' | 'FAILED';
+
 export interface IAuditLog extends Document {
+  userId?: mongoose.Types.ObjectId;
   email: string;
   action: string;
-  status: 'SUCCESS' | 'FAILED';
+  status: AuditStatus;
   ipAddress?: string;
+  userAgent?: string;
   reason?: string;
   createdAt: Date;
 }
 
 const auditLogSchema = new Schema<IAuditLog>(
   {
-    email: { type: String, required: true },
-    action: { type: String, required: true },
-    status: { type: String, enum: ['SUCCESS', 'FAILED'], required: true },
-    ipAddress: { type: String },
-    reason: { type: String },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+      index: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+    action: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: ['SUCCESS', 'FAILED'],
+      required: true,
+      index: true,
+    },
+    ipAddress: {
+      type: String,
+      required: false,
+    },
+    userAgent: {
+      type: String,
+      required: false,
+    },
+    reason: {
+      type: String,
+      required: false,
+      maxlength: 500,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-export const AuditLog = mongoose.model<IAuditLog>('AuditLog', auditLogSchema);
+auditLogSchema.index({ createdAt: -1 });
+
+export const AuditLog = mongoose.model<IAuditLog>(
+  'AuditLog',
+  auditLogSchema
+);

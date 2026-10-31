@@ -1,3 +1,4 @@
+
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import {
@@ -6,28 +7,65 @@ import {
   getUsers,
   updateUser,
   updateUserStatus,
+  type UserActor,
 } from '../services/user.service';
 import { UserRole } from '../constants/roles.enum';
 import { User } from '../models/User.model';
 
-const getErrorStatus = (error: any, fallback = 400) =>
-  error?.statusCode || fallback;
+const getErrorStatus = (error: unknown, fallback = 500): number => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    typeof error.statusCode === 'number'
+  ) {
+    return error.statusCode;
+  }
 
-const getUserIdParam = (id: string | string[]): string | null => {
+  return fallback;
+};
+
+const getErrorMessage = (
+  error: unknown,
+  fallback: string,
+): string => {
+  return error instanceof Error && error.message
+    ? error.message
+    : fallback;
+};
+
+const getUserIdParam = (
+  id: string | string[] | undefined,
+): string | null => {
   if (typeof id !== 'string' || !id.trim()) {
     return null;
   }
 
-  return id;
+  return id.trim();
 };
 
-const getCurrentAdminEmail = async (userId: string) => {
+const getActor = (req: AuthRequest): UserActor | null => {
+  if (!req.user?.userId) {
+    return null;
+  }
+
+  return {
+    userId: req.user.userId,
+    role: req.user.role as UserRole,
+    branchId: req.user.branchId,
+  };
+};
+
+const getCurrentAdminEmail = async (
+  userId: string,
+): Promise<string> => {
   const admin = await User.findById(userId).select('email');
 
   if (!admin) {
-    throw Object.assign(new Error('Authenticated user not found'), {
-      statusCode: 401,
-    });
+    throw Object.assign(
+      new Error('Authenticated user not found'),
+      { statusCode: 401 },
+    );
   }
 
   return admin.email;
@@ -35,37 +73,48 @@ const getCurrentAdminEmail = async (userId: string) => {
 
 export const getUsersHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
-    const users = await getUsers();
+    const actor = getActor(req);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Users fetched successfully',
-      data: users,
-    });
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Unable to fetch users',
-    });
-  }
-};
-
-export const createUserHandler = async (
-  req: AuthRequest,
-  res: Response
-) => {
-  try {
-    if (!req.user?.userId) {
+    if (!actor) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized',
       });
     }
 
-    const adminEmail = await getCurrentAdminEmail(req.user.userId);
+    const users = await getUsers(actor);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Users fetched successfully',
+      data: users,
+    });
+  } catch (error: unknown) {
+    return res.status(getErrorStatus(error)).json({
+      success: false,
+      message: getErrorMessage(error, 'Unable to fetch users'),
+    });
+  }
+};
+
+export const createUserHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
+
+    const adminEmail = await getCurrentAdminEmail(actor.userId);
 
     const user = await createUser(
       {
@@ -76,7 +125,8 @@ export const createUserHandler = async (
         role: req.body.role as UserRole,
         branchId: req.body.branchId,
       },
-      adminEmail
+      adminEmail,
+      actor,
     );
 
     return res.status(201).json({
@@ -84,20 +134,22 @@ export const createUserHandler = async (
       message: 'User created successfully',
       data: user,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return res.status(getErrorStatus(error)).json({
       success: false,
-      message: error.message || 'Unable to create user',
+      message: getErrorMessage(error, 'Unable to create user'),
     });
   }
 };
 
 export const updateUserHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
-    if (!req.user?.userId) {
+    const actor = getActor(req);
+
+    if (!actor) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized',
@@ -113,7 +165,7 @@ export const updateUserHandler = async (
       });
     }
 
-    const adminEmail = await getCurrentAdminEmail(req.user.userId);
+    const adminEmail = await getCurrentAdminEmail(actor.userId);
 
     const user = await updateUser(
       userId,
@@ -124,7 +176,8 @@ export const updateUserHandler = async (
         role: req.body.role as UserRole | undefined,
         branchId: req.body.branchId,
       },
-      adminEmail
+      adminEmail,
+      actor,
     );
 
     return res.status(200).json({
@@ -132,20 +185,22 @@ export const updateUserHandler = async (
       message: 'User updated successfully',
       data: user,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return res.status(getErrorStatus(error)).json({
       success: false,
-      message: error.message || 'Unable to update user',
+      message: getErrorMessage(error, 'Unable to update user'),
     });
   }
 };
 
 export const updateUserStatusHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
-    if (!req.user?.userId) {
+    const actor = getActor(req);
+
+    if (!actor) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized',
@@ -161,13 +216,13 @@ export const updateUserStatusHandler = async (
       });
     }
 
-    const adminEmail = await getCurrentAdminEmail(req.user.userId);
+    const adminEmail = await getCurrentAdminEmail(actor.userId);
 
     const user = await updateUserStatus(
       userId,
       req.body.isActive,
-      req.user.userId,
-      adminEmail
+      adminEmail,
+      actor,
     );
 
     return res.status(200).json({
@@ -175,20 +230,22 @@ export const updateUserStatusHandler = async (
       message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`,
       data: user,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return res.status(getErrorStatus(error)).json({
       success: false,
-      message: error.message || 'Unable to update user status',
+      message: getErrorMessage(error, 'Unable to update user status'),
     });
   }
 };
 
 export const deleteUserHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
-    if (!req.user?.userId) {
+    const actor = getActor(req);
+
+    if (!actor) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized',
@@ -204,18 +261,18 @@ export const deleteUserHandler = async (
       });
     }
 
-    const adminEmail = await getCurrentAdminEmail(req.user.userId);
+    const adminEmail = await getCurrentAdminEmail(actor.userId);
 
-    await deleteUser(userId, req.user.userId, adminEmail);
+    await deleteUser(userId, adminEmail, actor);
 
     return res.status(200).json({
       success: true,
       message: 'User deleted successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return res.status(getErrorStatus(error)).json({
       success: false,
-      message: error.message || 'Unable to delete user',
+      message: getErrorMessage(error, 'Unable to delete user'),
     });
   }
 };

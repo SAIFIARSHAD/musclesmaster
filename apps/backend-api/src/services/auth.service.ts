@@ -1,105 +1,221 @@
+
 import crypto from 'crypto';
+import mongoose from 'mongoose';
+
 import { User } from '../models/User.model';
 import { AuditLog } from '../models/AuditLog.model';
-import { generateAccessToken, generateRefreshToken } from '../utils/jwt';
 import { generateOtp, hashOtp } from '../utils/otp';
 import { sendEmail } from './email.service';
 import { resetPasswordEmailTemplate } from '../templates/resetPasswordEmail';
+import { createSession, revokeAllUserSessions } from './session.service';
 
-export const loginUser = async (email: string, password: string) => {
-  const user = await User.findOne({ email: email.toLowerCase() });
+type LoginMeta = {
+  userAgent?: string;
+  ipAddress?: string;
+};
+
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+const OTP_EXPIRY_MS = 10 * 60 * 1000;
+const RESET_TOKEN_EXPIRY_MS = 10 * 60 * 1000;
+
+const getUserResponse = (user: {
+  _id: unknown;
+  name: string;
+  email: string;
+  role: string;
+  branchId?: string;
+}) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  branchId: user.branchId,
+});
+
+/**
+ * Audit logging must not interrupt the primary security operation.
+ * Never pass passwords, OTPs, refresh tokens or reset tokens to this helper.
+ */
+const writeAuditLog = async (
+  data: {
+    userId?: string;
+    email: string;
+    action: string;
+    status: 'SUCCESS' | 'FAILED';
+    ipAddress?: string;
+    userAgent?: string;
+    reason?: string;
+  }
+): Promise<void> => {
+  try {
+    const validUserId =
+      data.userId && mongoose.isValidObjectId(data.userId)
+        ? new mongoose.Types.ObjectId(data.userId)
+        : undefined;
+
+    await AuditLog.create({
+      ...(validUserId ? { userId: validUserId } : {}),
+      email: data.email.trim().toLowerCase(),
+      action: data.action,
+      status: data.status,
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+      reason: data.reason?.slice(0, 500),
+    });
+  } catch {
+    console.error(`Failed to record audit event: ${data.action}`);
+  }
+};
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+export const loginUser = async (
+  email: string,
+  password: string,
+  meta: LoginMeta = {}
+) => {
+  const normalizedEmail = normalizeEmail(email);
+  const user = await User.findOne({ email: normalizedEmail });
 
   if (!user) {
-    await AuditLog.create({
-      email,
+    await writeAuditLog({
+      email: normalizedEmail,
       action: 'LOGIN',
       status: 'FAILED',
+      ...meta,
       reason: 'User not found',
     });
-    throw new Error('Invalid email or password');
+
+    throw Object.assign(new Error('Invalid email or password'), {
+      statusCode: 401,
+    });
   }
 
   if (!user.isActive) {
-    await AuditLog.create({
-      email,
+    await writeAuditLog({
+      userId: String(user._id),
+      email: user.email,
       action: 'LOGIN',
       status: 'FAILED',
+      ...meta,
       reason: 'Account deactivated',
     });
-    throw new Error('Account is deactivated. Contact administrator.');
+
+    throw Object.assign(
+      new Error('Account is deactivated. Contact administrator.'),
+      { statusCode: 401 }
+    );
+  }
+
+  if (user.lockUntil && user.lockUntil > new Date()) {
+    await writeAuditLog({
+      userId: String(user._id),
+      email: user.email,
+      action: 'LOGIN',
+      status: 'FAILED',
+      ...meta,
+      reason: 'Account temporarily locked',
+    });
+
+    throw Object.assign(
+      new Error('Account is temporarily locked. Please try again after 15 minutes.'),
+      { statusCode: 423 }
+    );
+  }
+
+  if (user.lockUntil && user.lockUntil <= new Date()) {
+    user.failedLoginAttempts = 0;
+    user.lockUntil = undefined;
+    await user.save();
   }
 
   const isPasswordValid = await user.comparePassword(password);
 
   if (!isPasswordValid) {
-    await AuditLog.create({
-      email,
+    const attempts = (user.failedLoginAttempts || 0) + 1;
+    user.failedLoginAttempts = attempts;
+
+    let message = 'Invalid email or password';
+    let reason = 'Incorrect password';
+    let statusCode = 401;
+
+    if (attempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+      user.lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
+      user.failedLoginAttempts = 0;
+      message = 'Too many failed login attempts. Account is locked for 15 minutes.';
+      reason = 'Account locked after 5 failed login attempts';
+      statusCode = 423;
+    }
+
+    await user.save();
+
+    await writeAuditLog({
+      userId: String(user._id),
+      email: user.email,
       action: 'LOGIN',
       status: 'FAILED',
-      reason: 'Incorrect password',
+      ...meta,
+      reason,
     });
-    throw new Error('Invalid email or password');
+
+    throw Object.assign(new Error(message), { statusCode });
   }
 
-  await AuditLog.create({
-    email,
+  user.failedLoginAttempts = 0;
+  user.lockUntil = undefined;
+  await user.save();
+
+  const { accessToken, refreshToken } = await createSession(user, meta);
+
+  await writeAuditLog({
+    userId: String(user._id),
+    email: user.email,
     action: 'LOGIN',
     status: 'SUCCESS',
+    ...meta,
   });
-
-  const payload = {
-    userId: String(user._id),
-    role: user.role,
-    branchId: user.branchId,
-  };
-
-  const accessToken = generateAccessToken(payload);
-  const refreshToken = generateRefreshToken(payload);
 
   return {
     accessToken,
     refreshToken,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      branchId: user.branchId,
-    },
+    user: getUserResponse(user),
   };
 };
 
-// export const forgotPassword = async (email: string) => {
-//   const user = await User.findOne({ email: email.toLowerCase() });
-
-//   if (!user) {
-//     throw new Error('No account found with this email');
-//   }
-
-//   const otp = generateOtp();
-//   const hashedOtp = hashOtp(otp);
-
-//   user.resetOtp = hashedOtp;
-//   user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-//   await user.save();
-
-//   console.log(`[DEV ONLY] OTP for ${email}: ${otp}`);
-
-//   return { email: user.email };
-// };
-
 export const forgotPassword = async (email: string) => {
-  const user = await User.findOne({ email: email.toLowerCase() });
+  const normalizedEmail = normalizeEmail(email);
+  const user = await User.findOne({ email: normalizedEmail });
 
+  // Keep the public response generic to avoid exposing account existence.
   if (!user) {
-    throw new Error('No account found with this email');
+    await writeAuditLog({
+      email: normalizedEmail,
+      action: 'PASSWORD_RESET_REQUEST',
+      status: 'FAILED',
+      reason: 'No matching account',
+    });
+
+    return { email: normalizedEmail };
+  }
+
+  if (!user.isActive) {
+    await writeAuditLog({
+      userId: String(user._id),
+      email: user.email,
+      action: 'PASSWORD_RESET_REQUEST',
+      status: 'FAILED',
+      reason: 'Account deactivated',
+    });
+
+    // Keep the outward response generic.
+    return { email: normalizedEmail };
   }
 
   const otp = generateOtp();
-  const hashedOtp = hashOtp(otp);
 
-  user.resetOtp = hashedOtp;
-  user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  user.resetOtp = hashOtp(otp);
+  user.resetOtpExpiry = new Date(Date.now() + OTP_EXPIRY_MS);
   user.resetVerifiedToken = undefined;
   user.resetVerifiedTokenExpiry = undefined;
   await user.save();
@@ -112,42 +228,89 @@ export const forgotPassword = async (email: string) => {
       subject,
       html,
     });
-  } catch (error) {
+  } catch {
     user.resetOtp = undefined;
     user.resetOtpExpiry = undefined;
     await user.save();
 
+    await writeAuditLog({
+      userId: String(user._id),
+      email: user.email,
+      action: 'PASSWORD_RESET_REQUEST',
+      status: 'FAILED',
+      reason: 'Reset email delivery failed',
+    });
+
     throw new Error('Unable to send reset OTP. Please try again.');
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV ONLY] OTP for ${user.email}: ${otp}`);
-  }
+  await writeAuditLog({
+    userId: String(user._id),
+    email: user.email,
+    action: 'PASSWORD_RESET_REQUEST',
+    status: 'SUCCESS',
+  });
 
+  // Do not log OTP values, even in development.
   return { email: user.email };
 };
 
 export const verifyResetOtp = async (email: string, otp: string) => {
+  const normalizedEmail = normalizeEmail(email);
+
   const user = await User.findOne({
-    email: email.toLowerCase(),
+    email: normalizedEmail,
     resetOtpExpiry: { $gt: new Date() },
   });
 
   if (!user || !user.resetOtp) {
+    await writeAuditLog({
+      email: normalizedEmail,
+      action: 'OTP_VERIFY',
+      status: 'FAILED',
+      reason: 'Invalid or expired OTP',
+    });
+
     throw new Error('Invalid or expired OTP');
   }
 
   const hashedInputOtp = hashOtp(otp);
-  if (hashedInputOtp !== user.resetOtp) {
+
+  const storedOtp = Buffer.from(user.resetOtp, 'utf8');
+  const submittedOtp = Buffer.from(hashedInputOtp, 'utf8');
+
+  const otpMatches =
+    storedOtp.length === submittedOtp.length &&
+    crypto.timingSafeEqual(storedOtp, submittedOtp);
+
+  if (!otpMatches) {
+    await writeAuditLog({
+      userId: String(user._id),
+      email: user.email,
+      action: 'OTP_VERIFY',
+      status: 'FAILED',
+      reason: 'Invalid OTP',
+    });
+
     throw new Error('Invalid or expired OTP');
   }
 
   const verifiedToken = crypto.randomBytes(32).toString('hex');
+
   user.resetVerifiedToken = verifiedToken;
-  user.resetVerifiedTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  user.resetVerifiedTokenExpiry = new Date(
+    Date.now() + RESET_TOKEN_EXPIRY_MS
+  );
   user.resetOtp = undefined;
   user.resetOtpExpiry = undefined;
   await user.save();
+
+  await writeAuditLog({
+    userId: String(user._id),
+    email: user.email,
+    action: 'OTP_VERIFY',
+    status: 'SUCCESS',
+  });
 
   return { verifiedToken };
 };
@@ -166,14 +329,16 @@ export const resetPassword = async (
   }
 
   user.password = newPassword;
-
-  // Reset token cannot be reused after password is changed.
   user.resetVerifiedToken = undefined;
   user.resetVerifiedTokenExpiry = undefined;
-
+  user.resetOtp = undefined;
+  user.resetOtpExpiry = undefined;
   await user.save();
 
-  await AuditLog.create({
+  await revokeAllUserSessions(String(user._id));
+
+  await writeAuditLog({
+    userId: String(user._id),
     email: user.email,
     action: 'PASSWORD_RESET',
     status: 'SUCCESS',
@@ -200,7 +365,8 @@ export const changePassword = async (
   const isCurrentPasswordValid = await user.comparePassword(currentPassword);
 
   if (!isCurrentPasswordValid) {
-    await AuditLog.create({
+    await writeAuditLog({
+      userId: String(user._id),
       email: user.email,
       action: 'PASSWORD_CHANGE',
       status: 'FAILED',
@@ -213,13 +379,24 @@ export const changePassword = async (
   const isSamePassword = await user.comparePassword(newPassword);
 
   if (isSamePassword) {
+    await writeAuditLog({
+      userId: String(user._id),
+      email: user.email,
+      action: 'PASSWORD_CHANGE',
+      status: 'FAILED',
+      reason: 'New password matches current password',
+    });
+
     throw new Error('New password must be different from current password');
   }
 
   user.password = newPassword;
   await user.save();
 
-  await AuditLog.create({
+  await revokeAllUserSessions(String(user._id));
+
+  await writeAuditLog({
+    userId: String(user._id),
     email: user.email,
     action: 'PASSWORD_CHANGE',
     status: 'SUCCESS',
