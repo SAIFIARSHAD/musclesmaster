@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays, Edit, UserRound } from 'lucide-react';
+import { CalendarDays, Edit, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { MemberDetails } from '../../api/member.api';
 

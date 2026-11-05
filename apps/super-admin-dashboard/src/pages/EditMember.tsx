@@ -20,7 +20,7 @@ import {
 } from '../api/member.api';
 
 import { useAuth } from '../context/AuthContext';
-import type { ChangeEvent, FormEvent } from 'react';
+
 
 interface EditFormState {
   firstName: string;
