@@ -18,6 +18,7 @@ import {
   Phone,
   Mail,
   Hash,
+  Eye,
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -447,6 +448,7 @@ export default function Members() {
                 <th className="px-5 py-4">Branch</th>
                 <th className="px-5 py-4">Joined On</th>
                 <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
 
@@ -454,7 +456,7 @@ export default function Members() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-5 py-16 text-center text-sm text-slate-500"
                   >
                     <RefreshCw
@@ -598,6 +600,18 @@ export default function Members() {
                           : 'Inactive'}
                       </span>
                     </td>
+{/* Actions */}
+<td className="px-5 py-4 text-right">
+  <button
+    type="button"
+    onClick={() => navigate(`/members/${member._id}`)}
+    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#14243B] transition hover:border-[#F4510B] hover:bg-orange-50 hover:text-[#F4510B]"
+  >
+    <Eye size={16} />
+    View Profile
+  </button>
+</td>
+
                   </tr>
                 ))
               )}

@@ -396,6 +396,89 @@ export async function getMembers(
 
 
 /**
+ * Get one member's complete profile.
+ *
+ * Super Admin: any branch.
+ * Branch Admin / Reception: assigned branch only.
+ * Member: own profile only.
+ */
+export async function getMemberById(
+  memberId: string,
+  actor: MemberActor,
+) {
+  if (!mongoose.isValidObjectId(memberId)) {
+    return fail('Invalid member ID', 400);
+  }
+
+  const member = await Member.findById(memberId);
+
+  if (!member) {
+    return fail('Member not found', 404);
+  }
+
+  // Branch-level access control.
+  if (
+    actor.role === UserRole.BRANCH_ADMIN ||
+    actor.role === UserRole.RECEPTION
+  ) {
+    const branchId = requireBranchId(actor.branchId);
+
+    if (String(member.branchId) !== branchId) {
+      return fail(
+        'You can access members from your assigned branch only',
+        403,
+      );
+    }
+  }
+
+  // Members can view only their own profile.
+  if (
+    actor.role === UserRole.MEMBER &&
+    String(member.userId) !== actor.userId
+  ) {
+    return fail('You can access your own profile only', 403);
+  }
+
+  // Fetch related records.
+  const [profile, user, branch, trainer] = await Promise.all([
+    MemberProfile.findOne({ memberId: member._id }).lean(),
+
+    User.findById(member.userId)
+      .select(
+        '_id name email mobile role branchId isActive createdAt updatedAt',
+      )
+      .lean(),
+
+    Branch.findById(member.branchId)
+      .select('_id name code address city state phone email isActive')
+      .lean(),
+
+    member.trainerId
+      ? User.findOne({
+          _id: member.trainerId,
+          role: UserRole.TRAINER,
+        })
+          .select('_id name email mobile role isActive')
+          .lean()
+      : Promise.resolve(null),
+  ]);
+
+  if (!user) {
+    return fail('Linked user account not found', 404);
+  }
+
+  return {
+    member: member.toObject(),
+    profile,
+    user,
+    branch,
+    trainer,
+  };
+}
+
+
+
+/**
  * Update member personal and fitness details.
  *
  * Super Admin / Branch Admin: Personal + Fitness details.

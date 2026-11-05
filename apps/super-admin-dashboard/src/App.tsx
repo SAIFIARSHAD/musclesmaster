@@ -26,6 +26,8 @@ import Branches from './pages/Branches';
 import BranchSettings from './pages/BranchSettings';
 import Members from './pages/Members';
 import AddMember from './pages/AddMember';
+import MemberProfile from './pages/MemberProfile';
+import EditMember from './pages/EditMember';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 
@@ -232,6 +234,8 @@ function AppRoutes() {
           {/* Member Management */}
           <Route path="/members" element={<Members />} />
           <Route path="/members/new" element={<AddMember />} />
+          <Route path="/members/:memberId" element={<MemberProfile />} />
+          <Route path="/members/:memberId/edit"element={<EditMember />}/>
         </Route>
       </Route>
 

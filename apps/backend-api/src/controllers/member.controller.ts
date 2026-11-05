@@ -1,4 +1,3 @@
-
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import {
@@ -7,6 +6,7 @@ import {
   updateMember,
   updateMemberTrainer,
   transferMemberBranch,
+  getMemberById,
   type CreateMemberInput,
   type UpdateMemberInput,
   type MemberActor,
@@ -178,6 +178,56 @@ export const getMembersHandler = async (
     });
   }
 };
+
+
+
+/**
+ * GET /api/members/:memberId
+ * Get complete details of one gym member.
+ */
+export const getMemberByIdHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const memberId = req.params.memberId;
+
+    if (typeof memberId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid member ID',
+      });
+    }
+
+    const actor = getActor(req);
+
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
+
+    const result = await getMemberById(memberId, actor);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Member details fetched successfully',
+      data: result,
+    });
+  } catch (error: unknown) {
+    console.error('Get member details error:', error);
+
+    return res.status(getErrorStatus(error)).json({
+      success: false,
+      message: getErrorMessage(
+        error,
+        'Unable to fetch member details',
+      ),
+    });
+  }
+};
+
 
 export const updateMemberHandler = async (
   req: AuthRequest,

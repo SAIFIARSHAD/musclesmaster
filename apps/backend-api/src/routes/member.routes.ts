@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 
 import {
@@ -7,6 +6,7 @@ import {
   updateMemberHandler,
   updateMemberTrainerHandler,
   transferMemberBranchHandler,
+  getMemberByIdHandler,
 } from '../controllers/member.controller';
 
 import { authenticate } from '../middlewares/auth.middleware';
@@ -31,6 +31,20 @@ router.get(
   ),
   getMembersHandler,
 );
+
+
+// Get one member's complete profile.
+router.get(
+  '/:memberId',
+  allowRoles(
+    UserRole.SUPER_ADMIN,
+    UserRole.BRANCH_ADMIN,
+    UserRole.RECEPTION,
+    UserRole.MEMBER,
+  ),
+  getMemberByIdHandler,
+);
+
 
 // Member registration: Super Admin, Branch Admin and Reception
 router.post(
