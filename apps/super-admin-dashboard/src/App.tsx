@@ -24,14 +24,14 @@ import ResetPassword from './pages/ResetPassword';
 import UsersPage from './pages/Users';
 import Branches from './pages/Branches';
 import BranchSettings from './pages/BranchSettings';
+import Members from './pages/Members';
+import AddMember from './pages/AddMember';
 
 import DashboardLayout from './components/layout/DashboardLayout';
-
 
 function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Wait until authentication is restored from Local Storage
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F5F7FB]">
@@ -51,7 +51,6 @@ function ProtectedRoute() {
 
   return <Outlet />;
 }
-
 
 function Dashboard() {
   const { user } = useAuth();
@@ -74,11 +73,18 @@ function Dashboard() {
       icon: Users,
       label: 'Manage accounts',
     },
+    {
+      title: 'Member Management',
+      description:
+        'Register gym members, view member records and manage member information.',
+      path: '/members',
+      icon: Users,
+      label: 'Manage members',
+    },
   ];
 
   return (
     <div className="space-y-7">
-
       {/* Welcome Banner */}
       <section
         className="relative isolate overflow-hidden rounded-2xl bg-[#14243B] text-white shadow-lg shadow-slate-900/10"
@@ -89,14 +95,12 @@ function Dashboard() {
           backgroundPosition: 'center',
         }}
       >
-        {/* Decorative orange glow */}
         <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#F4510B]/20 blur-3xl" />
 
         <div className="pointer-events-none absolute -bottom-24 right-1/3 h-52 w-52 rounded-full bg-orange-500/10 blur-3xl" />
 
         <div className="relative flex flex-col justify-between gap-7 p-6 sm:p-8 lg:flex-row lg:items-center lg:px-10 lg:py-9">
           <div className="max-w-2xl">
-
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-[10px] font-bold tracking-wider text-orange-200">
               <ShieldCheck size={14} className="text-[#F4510B]" />
               SUPER ADMIN WORKSPACE
@@ -138,7 +142,7 @@ function Dashboard() {
           </p>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {modules.map((module) => {
             const Icon = module.icon;
 
@@ -219,14 +223,20 @@ function AppRoutes() {
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/branches" element={<Branches />} />
-          <Route path="/branches/:id/settings" element={<BranchSettings />}/>
+          <Route
+            path="/branches/:id/settings"
+            element={<BranchSettings />}
+          />
           <Route path="/users" element={<UsersPage />} />
+
+          {/* Member Management */}
+          <Route path="/members" element={<Members />} />
+          <Route path="/members/new" element={<AddMember />} />
         </Route>
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      
     </Routes>
   );
 }

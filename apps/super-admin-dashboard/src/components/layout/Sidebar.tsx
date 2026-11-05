@@ -32,7 +32,7 @@ const navigation = [
     items: [
       { title: 'Branches', path: '/branches', icon: Building2 },
       { title: 'Users', path: '/users', icon: Users },
-      { title: 'Members', path: '/members', icon: UsersRound, upcoming: true },
+      { title: 'Members', path: '/members', icon: UsersRound },
       { title: 'Memberships', path: '/memberships', icon: CreditCard, upcoming: true },
     ],
   },

@@ -24,21 +24,30 @@ const isValidObjectId = (value: unknown): value is string =>
   mongoose.isValidObjectId(value.trim());
 
 const isValidDate = (value: unknown): boolean => {
-  if (typeof value !== 'string' && !(value instanceof Date)) {
-    return false;
-  }
+  if (typeof value !== 'string') return false;
 
-  const date = new Date(value);
+  // Strict YYYY-MM-DD format and real calendar date.
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
 
-  return !Number.isNaN(date.getTime());
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
 };
 
-const isFutureDate = (value: string | Date): boolean => {
-  const date = new Date(value);
+const isFutureDate = (value: string): boolean => {
+  const date = new Date(`${value}T00:00:00.000Z`);
   const today = new Date();
-
-  today.setHours(0, 0, 0, 0);
-  date.setHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0);
 
   return date > today;
 };
@@ -47,7 +56,7 @@ const isValidGender = (value: unknown): value is MemberGender =>
   typeof value === 'string' &&
   Object.values(MemberGender).includes(value as MemberGender);
 
-// Create Member Validation
+// CREATE MEMBER VALIDATION
 export const validateCreateMember = (
   req: Request,
   res: Response,
@@ -60,7 +69,14 @@ export const validateCreateMember = (
     dob,
     mobile,
     email,
+    password,
     branchId,
+    address,
+    height,
+    weight,
+    fitnessGoal,
+    medicalConditions,
+    trainerId,
   } = req.body;
 
   if (!isNonEmptyString(firstName)) {
@@ -76,7 +92,10 @@ export const validateCreateMember = (
   }
 
   if (!isValidDate(dob)) {
-    return sendValidationError(res, 'A valid date of birth is required');
+    return sendValidationError(
+      res,
+      'Date of birth must be a valid date in YYYY-MM-DD format',
+    );
   }
 
   if (isFutureDate(dob)) {
@@ -93,40 +112,84 @@ export const validateCreateMember = (
     );
   }
 
-  if (email !== undefined && email !== null && email !== '') {
-    if (!isValidEmail(email)) {
-      return sendValidationError(
-        res,
-        'Please provide a valid email address',
-      );
+  if (!isValidEmail(email)) {
+    return sendValidationError(res, 'A valid email address is required');
+  }
+
+  if (!isNonEmptyString(password) || password.trim().length < 8) {
+    return sendValidationError(
+      res,
+      'Password must be at least 8 characters',
+    );
+  }
+
+  if (branchId !== undefined && !isValidObjectId(branchId)) {
+    return sendValidationError(res, 'Invalid branch ID');
+  }
+
+  if (address !== undefined && typeof address !== 'string') {
+    return sendValidationError(res, 'Address must be a string');
+  }
+
+  if (height !== undefined) {
+    if (
+      typeof height !== 'number' ||
+      !Number.isFinite(height) ||
+      height <= 0
+    ) {
+      return sendValidationError(res, 'Height must be a positive number');
     }
   }
 
-  if (!isValidObjectId(branchId)) {
+  if (weight !== undefined) {
+    if (
+      typeof weight !== 'number' ||
+      !Number.isFinite(weight) ||
+      weight <= 0
+    ) {
+      return sendValidationError(res, 'Weight must be a positive number');
+    }
+  }
+
+  if (fitnessGoal !== undefined && typeof fitnessGoal !== 'string') {
+    return sendValidationError(res, 'Fitness goal must be a string');
+  }
+
+  if (
+    medicalConditions !== undefined &&
+    (
+      !Array.isArray(medicalConditions) ||
+      !medicalConditions.every(
+        (condition: unknown) => typeof condition === 'string',
+      )
+    )
+  ) {
     return sendValidationError(
       res,
-      'A valid branch ID is required',
+      'Medical conditions must be an array of strings',
     );
+  }
+
+  // Trainer assignment is optional. Null means no trainer assigned.
+  if (
+    trainerId !== undefined &&
+    trainerId !== null &&
+    !isValidObjectId(trainerId)
+  ) {
+    return sendValidationError(res, 'Invalid trainer ID');
   }
 
   next();
 };
 
-// Update Member Validation
+// UPDATE MEMBER VALIDATION
+
 export const validateUpdateMember = (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  const {
-    firstName,
-    lastName,
-    gender,
-    dob,
-    mobile,
-    email,
-    branchId,
-  } = req.body;
+  const body = req.body;
 
   const allowedFields = [
     'firstName',
@@ -136,37 +199,61 @@ export const validateUpdateMember = (
     'mobile',
     'email',
     'address',
+    'height',
+    'weight',
+    'fitnessGoal',
+    'medicalConditions',
   ];
 
-  const hasAllowedField = allowedFields.some(
-    (field) => req.body[field] !== undefined,
+  // Reject restricted or unknown fields instead of silently ignoring them.
+  const invalidFields = Object.keys(body).filter(
+    (field) => !allowedFields.includes(field),
   );
 
-  if (!hasAllowedField) {
+  if (invalidFields.length > 0) {
     return sendValidationError(
       res,
-      'At least one valid member field is required',
+      `These fields cannot be updated here: ${invalidFields.join(', ')}`,
     );
   }
 
-  if (firstName !== undefined && !isNonEmptyString(firstName)) {
+  if (Object.keys(body).length === 0) {
+    return sendValidationError(
+      res,
+      'At least one member field is required',
+    );
+  }
+
+  if (
+    body.firstName !== undefined &&
+    !isNonEmptyString(body.firstName)
+  ) {
     return sendValidationError(res, 'First name cannot be empty');
   }
 
-  if (lastName !== undefined && !isNonEmptyString(lastName)) {
+  if (
+    body.lastName !== undefined &&
+    !isNonEmptyString(body.lastName)
+  ) {
     return sendValidationError(res, 'Last name cannot be empty');
   }
 
-  if (gender !== undefined && !isValidGender(gender)) {
+  if (
+    body.gender !== undefined &&
+    !isValidGender(body.gender)
+  ) {
     return sendValidationError(res, 'Please provide a valid gender');
   }
 
-  if (dob !== undefined) {
-    if (!isValidDate(dob)) {
-      return sendValidationError(res, 'Please provide a valid date of birth');
+  if (body.dob !== undefined) {
+    if (!isValidDate(body.dob)) {
+      return sendValidationError(
+        res,
+        'Please provide a valid DOB in YYYY-MM-DD format',
+      );
     }
 
-    if (isFutureDate(dob)) {
+    if (isFutureDate(body.dob)) {
       return sendValidationError(
         res,
         'Date of birth cannot be in the future',
@@ -174,7 +261,10 @@ export const validateUpdateMember = (
     }
   }
 
-  if (mobile !== undefined && !isValidMobile(mobile)) {
+  if (
+    body.mobile !== undefined &&
+    !isValidMobile(body.mobile)
+  ) {
     return sendValidationError(
       res,
       'Please provide a valid 10-digit Indian mobile number',
@@ -182,10 +272,8 @@ export const validateUpdateMember = (
   }
 
   if (
-    email !== undefined &&
-    email !== null &&
-    email !== '' &&
-    !isValidEmail(email)
+    body.email !== undefined &&
+    !isValidEmail(body.email)
   ) {
     return sendValidationError(
       res,
@@ -193,21 +281,64 @@ export const validateUpdateMember = (
     );
   }
 
-  // Branch transfer will be handled through a separate
-  // authorized workflow, not this general update validator.
-  if (branchId !== undefined) {
-    return sendValidationError(
-      res,
-      'Branch cannot be changed through member update',
-    );
-  }
-
   if (
-    req.body.address !== undefined &&
-    typeof req.body.address !== 'string'
+    body.address !== undefined &&
+    typeof body.address !== 'string'
   ) {
     return sendValidationError(res, 'Address must be a string');
   }
 
+  if (body.height !== undefined) {
+    if (
+      typeof body.height !== 'number' ||
+      !Number.isFinite(body.height) ||
+      body.height <= 0
+    ) {
+      return sendValidationError(
+        res,
+        'Height must be a positive number',
+      );
+    }
+  }
+
+  if (body.weight !== undefined) {
+    if (
+      typeof body.weight !== 'number' ||
+      !Number.isFinite(body.weight) ||
+      body.weight <= 0
+    ) {
+      return sendValidationError(
+        res,
+        'Weight must be a positive number',
+      );
+    }
+  }
+
+  if (
+    body.fitnessGoal !== undefined &&
+    typeof body.fitnessGoal !== 'string'
+  ) {
+    return sendValidationError(
+      res,
+      'Fitness goal must be a string',
+    );
+  }
+
+  if (
+    body.medicalConditions !== undefined &&
+    (
+      !Array.isArray(body.medicalConditions) ||
+      !body.medicalConditions.every(
+        (condition: unknown) => typeof condition === 'string',
+      )
+    )
+  ) {
+    return sendValidationError(
+      res,
+      'Medical conditions must be an array of strings',
+    );
+  }
+
   next();
 };
+

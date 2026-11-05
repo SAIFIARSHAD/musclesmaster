@@ -7,7 +7,6 @@ import {
   Clock,
   CalendarClock,
   Globe,
-  IndianRupee,
   Save,
   RefreshCw,
   CheckCircle2,

@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import branchRoutes from './routes/branch.routes';
 import branchSettingsRoutes from './routes/branchSettings.routes';
+import memberRoutes from './routes/member.routes';
 
 const app: Application = express();
 
@@ -34,5 +35,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/branches', branchSettingsRoutes);
+app.use('/api/members', memberRoutes);
 
 export default app;
