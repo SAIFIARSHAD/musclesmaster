@@ -1,7 +1,5 @@
-
 import crypto from 'crypto';
 import mongoose from 'mongoose';
-
 import { User } from '../models/User.model';
 import { AuditLog } from '../models/AuditLog.model';
 import { generateOtp, hashOtp } from '../utils/otp';
