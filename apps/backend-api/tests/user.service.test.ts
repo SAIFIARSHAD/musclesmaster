@@ -1,4 +1,3 @@
-
 import mongoose from 'mongoose';
 import { User } from '../src/models/User.model';
 import { Branch } from '../src/models/Branch.model';

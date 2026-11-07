@@ -1,4 +1,3 @@
-
 import { Schema, model, InferSchemaType } from 'mongoose';
 
 const counterSchema = new Schema(

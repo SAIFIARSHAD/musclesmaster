@@ -1,7 +1,7 @@
-
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { UserRole } from '../constants/roles.enum';
+import { renewMembership } from '../services/membershipRenewal.service';
 
 import {
   assignMembership,
@@ -11,6 +11,15 @@ import {
   type MembershipListOptions,
   type AssignMembershipInput,
 } from '../services/membership.service';
+
+import {
+  requestMembershipFreeze,
+  getMembershipFreezeRequests,
+  reviewMembershipFreezeRequest,
+  unfreezeMembership,
+} from '../services/membershipFreeze.service';
+import { FreezeRequestStatus } from '../models/MembershipFreezeRequest.model';
+
 
 const getErrorStatus = (error: unknown, fallback = 500): number => {
   if (
@@ -205,4 +214,197 @@ export const getMembershipByIdHandler = async (
       ),
     });
   }
+};
+
+export const renewMembershipHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const actor = getActor(req);
+
+    // Validate authenticated actor
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+    }
+
+    const membership = await renewMembership(
+      {
+        membershipId: String(req.params.membershipId),
+        planId: req.body.planId,
+        notes: req.body.notes,
+      },
+      actor,
+    );
+
+    return res.status(201).json({
+      success: true,
+      message:
+        'Membership renewal initiated. Awaiting payment confirmation.',
+      data: membership,
+    });
+  } catch (error: unknown) {
+  console.error('Membership operation error:', error);
+
+  return res.status(getErrorStatus(error, 500)).json({
+    success: false,
+    message: getErrorMessage(error, 'Something went wrong.'),
+  });
+}
+};
+
+// Member submits a freeze request.
+export const requestMembershipFreezeHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+    }
+
+    const request = await requestMembershipFreeze(
+      {
+        membershipId: String(req.params.membershipId),
+        requestedDays: Number(req.body.requestedDays),
+        reason: req.body.reason,
+      },
+      actor,
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Freeze request submitted successfully.',
+      data: request,
+    });
+  } catch (error: unknown) {
+  console.error('Membership operation error:', error);
+
+  return res.status(getErrorStatus(error, 500)).json({
+    success: false,
+    message: getErrorMessage(error, 'Something went wrong.'),
+  });
+}
+};
+
+// Staff views freeze requests.
+export const getMembershipFreezeRequestsHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+    }
+
+    const status = req.query.status
+      ? (String(req.query.status) as FreezeRequestStatus)
+      : undefined;
+
+    const result = await getMembershipFreezeRequests(actor, {
+      status,
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 10,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Freeze requests fetched successfully.',
+      ...result,
+    });
+  } catch (error: unknown) {
+  console.error('Membership operation error:', error);
+
+  return res.status(getErrorStatus(error, 500)).json({
+    success: false,
+    message: getErrorMessage(error, 'Something went wrong.'),
+  });
+}
+};
+
+// Staff approves or rejects a freeze request.
+export const reviewMembershipFreezeRequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+    }
+
+    const request = await reviewMembershipFreezeRequest(
+      {
+        requestId: String(req.params.requestId),
+        decision: req.body.decision as 'APPROVE' | 'REJECT',
+        reviewNotes: req.body.reviewNotes,
+      },
+      actor,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Freeze request reviewed successfully.',
+      data: request,
+    });
+  } catch (error: unknown) {
+  console.error('Membership operation error:', error);
+
+  return res.status(getErrorStatus(error, 500)).json({
+    success: false,
+    message: getErrorMessage(error, 'Something went wrong.'),
+  });
+}
+};
+
+// Staff manually unfreezes a membership.
+export const unfreezeMembershipHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+    }
+
+    const membership = await unfreezeMembership(
+      String(req.params.membershipId),
+      actor,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Membership unfrozen successfully.',
+      data: membership,
+    });
+  } catch (error: unknown) {
+  console.error('Membership operation error:', error);
+
+  return res.status(getErrorStatus(error, 500)).json({
+    success: false,
+    message: getErrorMessage(error, 'Something went wrong.'),
+  });
+}
 };

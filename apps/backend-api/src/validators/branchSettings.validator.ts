@@ -1,4 +1,3 @@
-
 import { Request, Response, NextFunction } from 'express';
 
 const isTime = (value: unknown): value is string =>
@@ -19,6 +18,7 @@ const isValidTimezone = (value: string): boolean => {
 const allowedFields = new Set([
   'timezone',
   'currency',
+  'maxFreezeDays',
   'workingHours',
   'attendanceWindow',
 ]);
@@ -30,11 +30,7 @@ export function validateBranchSettings(
 ): void {
   const body: unknown = req.body;
 
-  if (
-    !body ||
-    typeof body !== 'object' ||
-    Array.isArray(body)
-  ) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
     res.status(400).json({
       success: false,
       message: 'Settings must be provided as an object',
@@ -43,9 +39,9 @@ export function validateBranchSettings(
   }
 
   const settings = body as Record<string, unknown>;
-  const keys = Object.keys(settings);
+  const fieldNames = Object.keys(settings);
 
-  if (keys.length === 0) {
+  if (fieldNames.length === 0) {
     res.status(400).json({
       success: false,
       message: 'At least one branch setting is required',
@@ -53,7 +49,7 @@ export function validateBranchSettings(
     return;
   }
 
-  const unknownFields = keys.filter(
+  const unknownFields = fieldNames.filter(
     (key) => !allowedFields.has(key),
   );
 
@@ -65,6 +61,7 @@ export function validateBranchSettings(
     return;
   }
 
+  // Timezone validation.
   if (settings.timezone !== undefined) {
     if (
       typeof settings.timezone !== 'string' ||
@@ -81,6 +78,7 @@ export function validateBranchSettings(
     settings.timezone = settings.timezone.trim();
   }
 
+  // Currency validation.
   if (settings.currency !== undefined) {
     if (
       typeof settings.currency !== 'string' ||
@@ -113,19 +111,31 @@ export function validateBranchSettings(
         return;
       }
     } catch {
-      // Keep the three-letter format check if currency
-      // enumeration is unavailable in the runtime.
+      // Keep the three-letter format check if enumeration is unavailable.
     }
   }
 
+  // Membership freeze limit validation.
+  if (settings.maxFreezeDays !== undefined) {
+    if (
+      typeof settings.maxFreezeDays !== 'number' ||
+      !Number.isInteger(settings.maxFreezeDays) ||
+      settings.maxFreezeDays < 0 ||
+      settings.maxFreezeDays > 365
+    ) {
+      res.status(400).json({
+        success: false,
+        message: 'Maximum freeze days must be a whole number between 0 and 365',
+      });
+      return;
+    }
+  }
+
+  // Working hours validation.
   if (settings.workingHours !== undefined) {
     const hours = settings.workingHours;
 
-    if (
-      !hours ||
-      typeof hours !== 'object' ||
-      Array.isArray(hours)
-    ) {
+    if (!hours || typeof hours !== 'object' || Array.isArray(hours)) {
       res.status(400).json({
         success: false,
         message: 'Working hours must be an object',
@@ -134,13 +144,11 @@ export function validateBranchSettings(
     }
 
     const workingHours = hours as Record<string, unknown>;
+    const keys = Object.keys(workingHours);
 
     if (
-      Object.keys(workingHours).length !== 2 ||
-      !Object.keys(workingHours).every(
-      (key) => ['start', 'end'].includes(key),
-      )||
-      
+      keys.length !== 2 ||
+      !keys.every((key) => ['start', 'end'].includes(key)) ||
       !isTime(workingHours.start) ||
       !isTime(workingHours.end) ||
       workingHours.start >= workingHours.end
@@ -153,14 +161,11 @@ export function validateBranchSettings(
     }
   }
 
+  // Attendance window validation.
   if (settings.attendanceWindow !== undefined) {
     const window = settings.attendanceWindow;
 
-    if (
-      !window ||
-      typeof window !== 'object' ||
-      Array.isArray(window)
-    ) {
+    if (!window || typeof window !== 'object' || Array.isArray(window)) {
       res.status(400).json({
         success: false,
         message: 'Attendance window must be an object',
@@ -170,22 +175,19 @@ export function validateBranchSettings(
 
     const attendanceWindow = window as Record<string, unknown>;
 
-    const keys = [
+    const requiredKeys = [
       'checkInStart',
       'checkInEnd',
       'checkOutStart',
       'checkOutEnd',
     ];
 
+    const keys = Object.keys(attendanceWindow);
+
     if (
-      Object.keys(attendanceWindow).length !== keys.length ||
-!Object.keys(attendanceWindow).every(
-  (key) => keys.includes(key),
-) ||
-!Object.keys(attendanceWindow).every(
-  (key) => keys.includes(key),
-) ||
-      keys.some((key) => !isTime(attendanceWindow[key])) ||
+      keys.length !== requiredKeys.length ||
+      !keys.every((key) => requiredKeys.includes(key)) ||
+      requiredKeys.some((key) => !isTime(attendanceWindow[key])) ||
       (attendanceWindow.checkInStart as string) >=
         (attendanceWindow.checkInEnd as string) ||
       (attendanceWindow.checkOutStart as string) >=

@@ -1,4 +1,3 @@
-
 import mongoose from 'mongoose';
 
 import { Member } from '../models/Member.model';

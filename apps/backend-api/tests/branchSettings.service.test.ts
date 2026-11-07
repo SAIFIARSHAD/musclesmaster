@@ -1,4 +1,3 @@
-
 import { Branch } from '../src/models/Branch.model';
 import { BranchSettings } from '../src/models/BranchSettings.model';
 import {

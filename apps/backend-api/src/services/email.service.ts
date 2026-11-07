@@ -1,4 +1,3 @@
-
 import nodemailer from 'nodemailer';
 
 type SendEmailParams = {

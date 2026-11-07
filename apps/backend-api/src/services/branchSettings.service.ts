@@ -1,4 +1,3 @@
-
 import mongoose from 'mongoose';
 import { Branch } from '../models/Branch.model';
 import { BranchSettings } from '../models/BranchSettings.model';
@@ -26,7 +25,6 @@ async function ensureBranchExists(branchId: string) {
 export async function getBranchSettings(branchId: string) {
   await ensureBranchExists(branchId);
 
-  // Atomic upsert avoids a separate find-then-create sequence.
   return BranchSettings.findOneAndUpdate(
     { branchId },
     { $setOnInsert: { branchId } },
@@ -42,10 +40,13 @@ export async function getBranchSettings(branchId: string) {
 export interface UpdateBranchSettingsInput {
   timezone?: string;
   currency?: string;
+  maxFreezeDays?: number;
+
   workingHours?: {
     start: string;
     end: string;
   };
+
   attendanceWindow?: {
     checkInStart: string;
     checkInEnd: string;
@@ -63,6 +64,7 @@ export async function updateBranchSettings(
   const allowedFields = [
     'timezone',
     'currency',
+    'maxFreezeDays',
     'workingHours',
     'attendanceWindow',
   ] as const;

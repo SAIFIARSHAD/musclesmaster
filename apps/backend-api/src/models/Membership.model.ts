@@ -76,7 +76,12 @@ const membershipSchema = new Schema<IMembership>(
       type: Number,
       default: 0,
       min: 0,
-    },
+      max: 30,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Freeze days must be a whole number.',
+      },
+  },
 
     frozenAt: {
       type: Date,

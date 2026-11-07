@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-
 export interface IBranch extends Document {
   name: string;
   code: string;

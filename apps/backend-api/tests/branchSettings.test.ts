@@ -1,4 +1,3 @@
-
 import { Request, Response, NextFunction } from 'express';
 import { validateBranchSettings } from '../src/validators/branchSettings.validator';
 
