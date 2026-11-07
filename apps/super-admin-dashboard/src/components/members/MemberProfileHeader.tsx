@@ -1,7 +1,6 @@
 import { CalendarDays, Edit, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { MemberDetails } from '../../api/member.api';
-
 interface MemberProfileHeaderProps {
   member: MemberDetails;
 }

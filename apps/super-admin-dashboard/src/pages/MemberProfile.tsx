@@ -20,7 +20,6 @@ import {
   getMemberByIdApi,
   type MemberByIdResponse,
 } from '../api/member.api';
-
 import MemberProfileHeader from '../components/members/MemberProfileHeader';
 import MemberInfoSection from '../components/members/MemberInfoSection';
 

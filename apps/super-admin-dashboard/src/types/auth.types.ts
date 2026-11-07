@@ -5,12 +5,10 @@ export interface IUser {
   role: string;
   branchId?: string;
 }
-
 export interface LoginRequest {
   email: string;
   password: string;
 }
-
 export interface LoginResponse {
   success: boolean;
   message: string;

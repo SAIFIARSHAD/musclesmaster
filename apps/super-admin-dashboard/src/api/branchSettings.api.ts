@@ -1,18 +1,14 @@
-
 import axiosInstance from './axiosInstance';
-
 export interface WorkingHours {
   start: string;
   end: string;
 }
-
 export interface AttendanceWindow {
   checkInStart: string;
   checkInEnd: string;
   checkOutStart: string;
   checkOutEnd: string;
 }
-
 export interface BranchSettings {
   _id?: string;
   branchId: string;
@@ -23,14 +19,12 @@ export interface BranchSettings {
   createdAt?: string;
   updatedAt?: string;
 }
-
 export interface UpdateBranchSettingsPayload {
   timezone?: string;
   currency?: string;
   workingHours?: WorkingHours;
   attendanceWindow?: AttendanceWindow;
 }
-
 interface ApiResponse<T> {
   success: boolean;
   message: string;

@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -600,10 +599,10 @@ export default function Members() {
                           : 'Inactive'}
                       </span>
                     </td>
-{/* Actions */}
-<td className="px-5 py-4 text-right">
-  <button
-    type="button"
+                    {/* Actions */}
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
     onClick={() => navigate(`/members/${member._id}`)}
     className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#14243B] transition hover:border-[#F4510B] hover:bg-orange-50 hover:text-[#F4510B]"
   >

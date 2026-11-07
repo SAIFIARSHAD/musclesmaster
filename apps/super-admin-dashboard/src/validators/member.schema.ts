@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 const mobileRegex = /^[6-9]\d{9}$/;
@@ -75,7 +74,6 @@ export const accountInfoSchema = z.object({
     .nullable()
     .optional(),
 });
-
 
 export const memberFormSchema = personalInfoSchema
   .extend(fitnessInfoSchema.shape)

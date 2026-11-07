@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -8,7 +7,6 @@ import {
   UserRound,
   ShieldCheck,
 } from 'lucide-react';
-
 import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
@@ -132,7 +130,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     </p>
                   </div>
                 </div>
-
                 <button
                   type="button"
                   role="menuitem"

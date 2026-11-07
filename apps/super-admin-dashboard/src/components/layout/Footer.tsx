@@ -1,4 +1,3 @@
-
 export default function Footer() {
   return (
     <footer className="mt-auto border-t border-slate-200 bg-white px-5 py-5 sm:px-8">

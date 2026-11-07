@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-
 interface MemberInfoItem {
   label: string;
   value: ReactNode;
   icon?: LucideIcon;
 }
-
 interface MemberInfoSectionProps {
   title: string;
   icon: LucideIcon;

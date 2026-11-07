@@ -1,13 +1,10 @@
-
 import axiosInstance from './axiosInstance';
-
 export type UserRole =
   | 'SUPER_ADMIN'
   | 'BRANCH_ADMIN'
   | 'RECEPTION'
   | 'TRAINER'
   | 'MEMBER';
-
 export interface ManagedUser {
   _id: string;
   name: string;
@@ -19,7 +16,6 @@ export interface ManagedUser {
   createdAt?: string;
   updatedAt?: string;
 }
-
 export interface CreateUserPayload {
   name: string;
   email: string;
@@ -28,7 +24,6 @@ export interface CreateUserPayload {
   role: UserRole;
   branchId?: string;
 }
-
 export interface UpdateUserPayload {
   name: string;
   email: string;
@@ -36,7 +31,6 @@ export interface UpdateUserPayload {
   role: UserRole;
   branchId?: string | null;
 }
-
 interface ApiResponse<T> {
   success: boolean;
   message: string;

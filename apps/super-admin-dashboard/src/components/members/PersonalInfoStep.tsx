@@ -1,11 +1,9 @@
-
 import type {
   FieldErrors,
   UseFormRegister,
 } from 'react-hook-form';
 
 import type { MemberFormInput } from '../../validators/member.schema';
-
 interface PersonalInfoStepProps {
   register: UseFormRegister<MemberFormInput>;
   errors: FieldErrors<MemberFormInput>;

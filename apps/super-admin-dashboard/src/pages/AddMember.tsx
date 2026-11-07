@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -12,20 +11,17 @@ import {
   UserPlus,
   AlertCircle,
 } from 'lucide-react';
-
 import { useAuth } from '../context/AuthContext';
 import { getBranchesApi, type Branch } from '../api/branch.api';
 import {
   createMemberApi,
   type CreateMemberPayload,
 } from '../api/member.api';
-
 import {
   memberFormSchema,
   type MemberFormInput,
   type MemberFormValues,
 } from '../validators/member.schema';
-
 import MemberFormStepper from '../components/members/MemberFormStepper';
 import PersonalInfoStep from '../components/members/PersonalInfoStep';
 import FitnessInfoStep from '../components/members/FitnessInfoStep';

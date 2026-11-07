@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react';
 import {
   Activity,
@@ -14,7 +13,6 @@ import type {
 } from 'react-hook-form';
 
 import type { MemberFormInput } from '../../validators/member.schema';
-
 interface FitnessInfoStepProps {
   register: UseFormRegister<MemberFormInput>;
   watch: UseFormWatch<MemberFormInput>;
@@ -66,7 +64,6 @@ export default function FitnessInfoStep({
     }
 
     const heightInMeters = heightValue / 100;
-
     return Number(
       (weightValue / (heightInMeters * heightInMeters)).toFixed(1),
     );

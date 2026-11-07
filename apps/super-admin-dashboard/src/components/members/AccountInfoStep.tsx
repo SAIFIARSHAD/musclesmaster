@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import {
   Eye,
@@ -16,7 +15,6 @@ import type {
 
 import type { MemberFormInput } from '../../validators/member.schema';
 import type { Branch } from '../../api/branch.api';
-
 interface AccountInfoStepProps {
   register: UseFormRegister<MemberFormInput>;
   errors: FieldErrors<MemberFormInput>;

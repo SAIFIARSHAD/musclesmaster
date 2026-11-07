@@ -19,8 +19,6 @@ import {
 } from '../api/member.api';
 
 import { useAuth } from '../context/AuthContext';
-
-
 interface EditFormState {
   firstName: string;
   lastName: string;

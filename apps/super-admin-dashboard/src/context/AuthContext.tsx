@@ -1,4 +1,3 @@
-
 import {
   createContext,
   useContext,
@@ -8,7 +7,6 @@ import {
 } from 'react';
 
 import type { IUser } from '../types/auth.types';
-
 interface AuthContextType {
   user: IUser | null;
   accessToken: string | null;

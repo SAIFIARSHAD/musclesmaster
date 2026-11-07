@@ -1,6 +1,4 @@
-
 import axiosInstance from './axiosInstance';
-
 export interface Branch {
   _id: string;
   name: string;
@@ -17,7 +15,6 @@ export interface Branch {
   createdAt?: string;
   updatedAt?: string;
 }
-
 export interface BranchPayload {
   name: string;
   code: string;
@@ -28,21 +25,18 @@ export interface BranchPayload {
   email?: string;
   gstNumber?: string;
 }
-
 export interface BranchPagination {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
 }
-
 export interface BranchListParams {
   page?: number;
   limit?: number;
   search?: string;
   status?: 'active' | 'inactive' | 'all';
 }
-
 interface ApiResponse<T> {
   success: boolean;
   message: string;

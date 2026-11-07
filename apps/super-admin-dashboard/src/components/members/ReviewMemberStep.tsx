@@ -13,7 +13,6 @@ import {
 
 import type { MemberFormInput } from '../../validators/member.schema';
 import type { Branch } from '../../api/branch.api';
-
 interface ReviewMemberStepProps {
   values: MemberFormInput;
   branches: Branch[];

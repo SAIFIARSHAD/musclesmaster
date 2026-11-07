@@ -1,4 +1,3 @@
-
 import {
   Check,
   UserRound,
@@ -6,7 +5,6 @@ import {
   ShieldCheck,
   ClipboardCheck,
 } from 'lucide-react';
-
 interface MemberFormStepperProps {
   currentStep: number;
 }

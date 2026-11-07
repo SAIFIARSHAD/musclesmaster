@@ -88,7 +88,6 @@ export interface CreateMemberPayload {
   medicalConditions?: string[];
   trainerId?: string | null;
 }
-
 export interface CreatedMember {
   _id: string;
   memberId: string;
@@ -144,7 +143,6 @@ export interface MemberAccount {
   createdAt?: string;
   updatedAt?: string;
 }
-
 export interface MemberBranch {
   _id: string;
   name: string;
@@ -156,7 +154,6 @@ export interface MemberBranch {
   email?: string;
   isActive: boolean;
 }
-
 export interface MemberTrainer {
   _id: string;
   name: string;
@@ -165,7 +162,6 @@ export interface MemberTrainer {
   role: string;
   isActive: boolean;
 }
-
 export interface MemberDetailResult {
   member: MemberListItem;
   profile: MemberProfile | null;
@@ -186,7 +182,6 @@ export interface UpdateMemberPayload {
   fitnessGoal?: string;
   medicalConditions?: string[];
 }
-
 export interface UpdateMemberResult {
   member: MemberListItem;
   profile: MemberProfile;
@@ -196,7 +191,6 @@ export interface CreateMemberResult {
   member: CreatedMember;
   profile: CreatedMemberProfile;
 }
-
 export interface MemberListItem {
   _id: string;
   userId: string;
@@ -217,14 +211,12 @@ export interface MemberListItem {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface MemberPagination {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
 }
-
 export interface MemberListParams {
   page?: number;
   limit?: number;
@@ -233,13 +225,11 @@ export interface MemberListParams {
   branchId?: string;
   membershipPlan?: string;
 }
-
 interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
 }
-
 interface MemberListApiResponse {
   success: boolean;
   message: string;

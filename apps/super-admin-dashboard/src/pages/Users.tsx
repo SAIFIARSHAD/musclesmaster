@@ -1,4 +1,3 @@
-
 import {
   useCallback,
   useEffect,
@@ -50,7 +49,6 @@ const roles: { value: UserRole; label: string }[] = [
   { value: 'TRAINER', label: 'Trainer' },
   { value: 'MEMBER', label: 'Member' },
 ];
-
 type UserForm = {
   name: string;
   email: string;
@@ -261,7 +259,7 @@ export default function Users() {
           email: form.email.trim(),
           mobile: form.mobile.trim(),
           role: form.role,
-          branchId: needsBranch ? form.branchId.trim() : null,
+          branchId: needsBranch ? form.branchId.trim(): null,
         };
 
         const updated = await updateUserApi(editingUser._id, payload);
