@@ -70,6 +70,100 @@ const populateFreezeRequest = (query: any) =>
     .populate('reviewedBy', 'firstName lastName email');
 
 /**
+ * Shared unfreeze calculation and persistence.
+ * Used by both manual and automatic unfreeze.
+ */
+const executeUnfreeze = async (
+  membershipId: mongoose.Types.ObjectId,
+  session: mongoose.ClientSession,
+  source: 'MANUAL' | 'SYSTEM_JOB',
+  performedBy?: mongoose.Types.ObjectId,
+) => {
+  const membership = await Membership.findOneAndUpdate(
+    {
+      _id: membershipId,
+      status: MembershipStatus.FROZEN,
+      frozenAt: { $exists: true, $ne: null },
+    },
+    {
+      $set: { updatedAt: new Date() },
+    },
+    { new: true, session },
+  );
+
+  if (!membership) {
+    return null;
+  }
+
+  const now = new Date();
+
+  const approvedRequest = await MembershipFreezeRequest.findOne({
+    membershipId: membership._id,
+    status: FreezeRequestStatus.APPROVED,
+  })
+    .sort({ reviewedAt: -1 })
+    .session(session);
+
+  if (!approvedRequest) {
+    return fail('Approved freeze request not found.', 404);
+  }
+
+  const frozenAt = membership.frozenAt!;
+
+  const elapsedDays = Math.ceil(
+    Math.max(0, now.getTime() - frozenAt.getTime()) / DAY_IN_MS,
+  );
+
+  const actualFrozenDays = Math.min(
+    approvedRequest.requestedDays,
+    Math.max(1, elapsedDays),
+  );
+
+  const previousEndDate = new Date(membership.endDate);
+
+  const updatedEndDate = new Date(
+    previousEndDate.getTime() + actualFrozenDays * DAY_IN_MS,
+  );
+
+  membership.endDate = updatedEndDate;
+  membership.freezeDays += actualFrozenDays;
+  membership.status = MembershipStatus.ACTIVE;
+  membership.frozenAt = undefined;
+  membership.freezeEndDate = undefined;
+
+  await membership.save({ session });
+
+  await MembershipHistory.create(
+    [
+      {
+        membershipId: membership._id,
+        memberId: membership.memberId,
+        branchId: membership.branchId,
+        action: MembershipHistoryAction.UNFROZEN,
+        previousStatus: MembershipStatus.FROZEN,
+        newStatus: MembershipStatus.ACTIVE,
+        ...(performedBy ? { performedBy } : {}),
+        notes:
+          source === 'SYSTEM_JOB'
+            ? 'Membership automatically unfrozen by scheduled job.'
+            : 'Membership manually unfrozen.',
+        metadata: {
+          freezeRequestId: approvedRequest._id.toString(),
+          actualFrozenDays,
+          previousEndDate,
+          updatedEndDate,
+          unfrozenAt: now,
+          source,
+        },
+      },
+    ],
+    { session },
+  );
+
+  return membership;
+};
+
+/**
  * Member submits a freeze request for their own ACTIVE membership.
  */
 export const requestMembershipFreeze = async (
@@ -117,7 +211,6 @@ export const requestMembershipFreeze = async (
       if (!membership) {
         return fail('Membership not found.', 404);
       }
-      
 
       if (!membership.memberId.equals(member._id)) {
         return fail('You can request a freeze for your own membership only.', 403);
@@ -131,7 +224,6 @@ export const requestMembershipFreeze = async (
         branchId: membership.branchId,
       }).session(session);
 
-      // Fallback supports older BranchSettings documents.
       const maxFreezeDays = settings?.maxFreezeDays ?? 30;
 
       if (
@@ -242,9 +334,7 @@ export const getMembershipFreezeRequests = async (
   }
 
   if (options.status) {
-    if (
-      !Object.values(FreezeRequestStatus).includes(options.status)
-    ) {
+    if (!Object.values(FreezeRequestStatus).includes(options.status)) {
       return fail('Invalid freeze request status.', 400);
     }
 
@@ -324,16 +414,12 @@ export const reviewMembershipFreezeRequest = async (
         return fail('Membership not found.', 404);
       }
 
-      // Verify that the freeze request belongs to this membership.
-if (
-  !membership.memberId.equals(request.memberId) ||
-  !membership.branchId.equals(request.branchId)
-) {
-  return fail(
-    'Freeze request does not match the associated membership.',
-    400,
-  );
-}
+      if (
+        !membership.memberId.equals(request.memberId) ||
+        !membership.branchId.equals(request.branchId)
+      ) {
+        return fail('Freeze request does not match the associated membership.', 400);
+      }
 
       if (input.decision === 'REJECT') {
         request.status = FreezeRequestStatus.REJECTED;
@@ -381,6 +467,10 @@ if (
         maxFreezeDays > 30
       ) {
         return fail('Branch freeze settings are invalid.', 400);
+      }
+
+      if (maxFreezeDays === 0) {
+        return fail('Freeze requests are disabled for this branch.', 400);
       }
 
       if (membership.freezeDays + request.requestedDays > maxFreezeDays) {
@@ -448,7 +538,6 @@ if (
 
 /**
  * Staff manually unfreezes a membership.
- * Actual frozen days are added to the cumulative allowance and membership end date.
  */
 export const unfreezeMembership = async (
   membershipId: string,
@@ -476,70 +565,21 @@ export const unfreezeMembership = async (
 
       validateStaffBranchAccess(membership.branchId.toString(), actor);
 
-      if (membership.status !== MembershipStatus.FROZEN || !membership.frozenAt) {
+      if (
+        membership.status !== MembershipStatus.FROZEN ||
+        !membership.frozenAt
+      ) {
         return fail('This membership is not currently frozen.', 400);
       }
 
-      const approvedRequest = await MembershipFreezeRequest.findOne({
-        membershipId: membership._id,
-        status: FreezeRequestStatus.APPROVED,
-      })
-        .sort({ reviewedAt: -1 })
-        .session(session);
-
-      if (!approvedRequest) {
-        return fail('Approved freeze request not found.', 404);
-      }
-
-      const now = new Date();
-
-      const elapsedDays = Math.ceil(
-        (now.getTime() - membership.frozenAt.getTime()) / DAY_IN_MS,
+      const result = await executeUnfreeze(
+        membership._id,
+        session,
+        'MANUAL',
+        new mongoose.Types.ObjectId(actor.userId),
       );
 
-      const actualFrozenDays = Math.min(
-        approvedRequest.requestedDays,
-        Math.max(1, elapsedDays),
-      );
-
-      membership.endDate = new Date(
-        membership.endDate.getTime() + actualFrozenDays * DAY_IN_MS,
-      );
-
-      membership.freezeDays += actualFrozenDays;
-      membership.status = MembershipStatus.ACTIVE;
-      membership.frozenAt = undefined;
-      membership.freezeEndDate = undefined;
-
-      await membership.save({ session });
-
-      await MembershipHistory.create(
-        [
-          {
-            membershipId: membership._id,
-            memberId: membership.memberId,
-            branchId: membership.branchId,
-            action: MembershipHistoryAction.UNFROZEN,
-            previousStatus: MembershipStatus.FROZEN,
-            newStatus: MembershipStatus.ACTIVE,
-            performedBy: new mongoose.Types.ObjectId(actor.userId),
-            notes: 'Membership manually unfrozen.',
-            metadata: {
-              freezeRequestId: approvedRequest._id.toString(),
-              actualFrozenDays,
-              previousEndDate: new Date(
-                membership.endDate.getTime() -
-                  actualFrozenDays * DAY_IN_MS,
-              ),
-              updatedEndDate: membership.endDate,
-              unfrozenAt: now,
-            },
-          },
-        ],
-        { session },
-      );
-
-      return membership._id;
+      return result?._id;
     });
 
     if (!resultId) {
@@ -550,6 +590,47 @@ export const unfreezeMembership = async (
       .populate('memberId', 'memberId firstName lastName email mobile')
       .populate('planId', 'planName planType duration price ptIncluded')
       .populate('branchId', 'name code');
+  } finally {
+    await session.endSession();
+  }
+};
+
+/**
+ * Automatically unfreezes a membership after its scheduled freeze end.
+ * Called by the daily membership cron job.
+ */
+export const autoUnfreezeMembership = async (
+  membershipId: string,
+): Promise<boolean> => {
+  if (!mongoose.isValidObjectId(membershipId)) {
+    return false;
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    const result = await session.withTransaction(async () => {
+      const membership = await Membership.findOne({
+        _id: membershipId,
+        status: MembershipStatus.FROZEN,
+        frozenAt: { $exists: true, $ne: null },
+        freezeEndDate: { $lte: new Date() },
+      }).session(session);
+
+      if (!membership) {
+        return false;
+      }
+
+      const updated = await executeUnfreeze(
+        membership._id,
+        session,
+        'SYSTEM_JOB',
+      );
+
+      return Boolean(updated);
+    });
+
+    return Boolean(result);
   } finally {
     await session.endSession();
   }

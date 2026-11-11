@@ -67,7 +67,7 @@ const membershipHistorySchema = new Schema<IMembershipHistory>(
     performedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
     },
 
     notes: {

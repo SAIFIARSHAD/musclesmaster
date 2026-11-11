@@ -11,7 +11,7 @@ function sendError(res: Response, message: string) {
   });
 }
 
-const allowedFields = [
+const createAllowedFields = [
   'planName',
   'planType',
   'duration',
@@ -20,14 +20,23 @@ const allowedFields = [
   'ptIncluded',
 ];
 
+const updateAllowedFields = [
+  ...createAllowedFields,
+  'status',
+];
+
 function validatePlanFields(
   body: Record<string, unknown>,
   res: Response,
   isUpdate: boolean,
 ): boolean {
-  const hasAllowedField = allowedFields.some(
-    (field) => body[field] !== undefined,
-  );
+  const allowedFields = isUpdate
+  ? updateAllowedFields
+  : createAllowedFields;
+
+const hasAllowedField = allowedFields.some(
+  (field) => body[field] !== undefined,
+);
 
   if (isUpdate && !hasAllowedField) {
     sendError(res, 'At least one membership plan field is required');
@@ -95,6 +104,16 @@ function validatePlanFields(
     sendError(res, 'ptIncluded must be true or false');
     return false;
   }
+
+if (isUpdate && body.status !== undefined) {
+  if (
+    body.status !== 'ACTIVE' &&
+    body.status !== 'INACTIVE'
+  ) {
+    sendError(res, 'Status must be ACTIVE or INACTIVE');
+    return false;
+  }
+}
 
   const unknownFields = Object.keys(body).filter(
     (field) => !allowedFields.includes(field),

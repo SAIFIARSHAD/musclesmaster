@@ -15,7 +15,9 @@ export interface CreateMembershipPlanInput {
 }
 
 export type UpdateMembershipPlanInput =
-  Partial<CreateMembershipPlanInput>;
+  Partial<CreateMembershipPlanInput> & {
+    status?: MembershipPlanStatus;
+  };
 
 export interface MembershipPlanListOptions {
   page?: number;

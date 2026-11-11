@@ -28,6 +28,7 @@ import Members from './pages/Members';
 import AddMember from './pages/AddMember';
 import MemberProfile from './pages/MemberProfile';
 import EditMember from './pages/EditMember';
+import PlanManagement from './pages/PlanManagement';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 
@@ -236,6 +237,7 @@ function AppRoutes() {
           <Route path="/members/new" element={<AddMember />} />
           <Route path="/members/:memberId" element={<MemberProfile />} />
           <Route path="/members/:memberId/edit"element={<EditMember />}/>
+          <Route path="memberships" element={<PlanManagement />} />
         </Route>
       </Route>
 

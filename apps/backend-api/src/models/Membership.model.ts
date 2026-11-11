@@ -6,7 +6,6 @@ export enum MembershipStatus {
   EXPIRED = 'EXPIRED',
   FROZEN = 'FROZEN',
 }
-
 export interface IMembership extends Document {
   memberId: mongoose.Types.ObjectId;
   planId: mongoose.Types.ObjectId;

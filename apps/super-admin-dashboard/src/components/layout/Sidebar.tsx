@@ -12,6 +12,19 @@ import {
   X,
 } from 'lucide-react';
 
+
+interface NavigationItem {
+  title: string;
+  path: string;
+  icon: React.ElementType;
+  upcoming?: boolean;
+}
+
+interface NavigationGroup {
+  label: string;
+  items: NavigationItem[];
+}
+
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
@@ -19,7 +32,7 @@ interface SidebarProps {
   onToggleCollapse: () => void;
 }
 
-const navigation = [
+const navigation: NavigationGroup[] = [
   {
     label: 'OVERVIEW',
     items: [
@@ -32,7 +45,7 @@ const navigation = [
       { title: 'Branches', path: '/branches', icon: Building2 },
       { title: 'Users', path: '/users', icon: Users },
       { title: 'Members', path: '/members', icon: UsersRound },
-      { title: 'Memberships', path: '/memberships', icon: CreditCard, upcoming: true },
+      { title: 'Memberships', path: '/memberships', icon: CreditCard },
     ],
   },
   {
