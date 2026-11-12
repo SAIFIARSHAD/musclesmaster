@@ -188,20 +188,20 @@ export const assignMembership = async (
 
       const endDate = calculateEndDate(startDate, plan.duration);
 
-      const [membership] = await Membership.create(
-        [
-          {
-            memberId: member._id,
-            planId: plan._id,
-            branchId: member.branchId,
-            paymentId: null,
-            startDate,
-            endDate,
-            status: MembershipStatus.PENDING,
-          },
-        ],
-        { session },
-      );
+     const [membership] = await Membership.create(
+  [
+    {
+      memberId: member._id,
+      planId: plan._id,
+      branchId: member.branchId,
+      agreedAmount: plan.price,
+      startDate,
+      endDate,
+      status: MembershipStatus.PENDING,
+    },
+  ],
+  { session },
+);
 
       await MembershipHistory.create(
         [

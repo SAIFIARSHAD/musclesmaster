@@ -31,6 +31,9 @@ export interface IMember extends Document {
 
   trainerId?: mongoose.Types.ObjectId | null;
 
+  // SHA-256 hash of the member's QR token
+  qrTokenHash?: string;
+
   status: MemberStatus;
 
   createdAt: Date;
@@ -120,6 +123,11 @@ const memberSchema = new Schema<IMember>(
       default: null,
     },
 
+    qrTokenHash: {
+      type: String,
+      select: false,
+    },
+
     status: {
       type: String,
       enum: Object.values(MemberStatus),
@@ -132,8 +140,7 @@ const memberSchema = new Schema<IMember>(
   },
 );
 
-// Same mobile number cannot be registered twice
-// within the same branch.
+// Same mobile number cannot be registered twice within the same branch.
 memberSchema.index(
   { branchId: 1, mobile: 1 },
   { unique: true },
@@ -142,6 +149,13 @@ memberSchema.index(
 memberSchema.index({ branchId: 1, status: 1 });
 memberSchema.index({ branchId: 1, memberId: 1 });
 memberSchema.index({ trainerId: 1 });
+
+// Every QR token hash must be unique.
+// Sparse index allows existing members without QR tokens.
+memberSchema.index(
+  { qrTokenHash: 1 },
+  { unique: true, sparse: true },
+);
 
 export const Member = mongoose.model<IMember>(
   'Member',

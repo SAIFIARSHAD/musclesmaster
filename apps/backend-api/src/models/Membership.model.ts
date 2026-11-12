@@ -6,12 +6,14 @@ export enum MembershipStatus {
   EXPIRED = 'EXPIRED',
   FROZEN = 'FROZEN',
 }
+
 export interface IMembership extends Document {
   memberId: mongoose.Types.ObjectId;
   planId: mongoose.Types.ObjectId;
   branchId: mongoose.Types.ObjectId;
 
-  paymentId?: mongoose.Types.ObjectId | null;
+  // Current agreed membership price
+  agreedAmount: number;
 
   startDate: Date;
   endDate: Date;
@@ -48,10 +50,10 @@ const membershipSchema = new Schema<IMembership>(
       required: true,
     },
 
-    paymentId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Payment',
-      default: null,
+    agreedAmount: {
+      type: Number,
+      required: true,
+      min: 0.01,
     },
 
     startDate: {
@@ -80,7 +82,7 @@ const membershipSchema = new Schema<IMembership>(
         validator: Number.isInteger,
         message: 'Freeze days must be a whole number.',
       },
-  },
+    },
 
     frozenAt: {
       type: Date,

@@ -10,6 +10,7 @@ import branchSettingsRoutes from './routes/branchSettings.routes';
 import memberRoutes from './routes/member.routes';
 import membershipPlanRoutes from './routes/membershipPlan.routes';
 import membershipRoutes from './routes/membership.routes';
+import attendanceRoutes from './routes/attendance.routes';
 
 const app: Application = express();
 
@@ -40,5 +41,6 @@ app.use('/api/branches', branchSettingsRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/membership-plans', membershipPlanRoutes);
 app.use('/api/memberships', membershipRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 export default app;
