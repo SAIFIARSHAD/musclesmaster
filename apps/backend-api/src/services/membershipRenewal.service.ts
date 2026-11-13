@@ -192,21 +192,23 @@ export const renewMembership = async (
 
       const endDate = calculateEndDate(startDate, plan.duration);
 
-      const [newMembership] = await Membership.create(
-        [
-          {
-            memberId: member._id,
-            planId: plan._id,
-            branchId: member.branchId,
-            paymentId: null,
-            startDate,
-            endDate,
-            status: MembershipStatus.PENDING,
-            freezeDays: 0,
-          },
-        ],
-        { session },
-      );
+     
+const [newMembership] = await Membership.create(
+  [
+    {
+      memberId: member._id,
+      planId: plan._id,
+      branchId: member.branchId,
+      agreedAmount: plan.price,
+      startDate,
+      endDate,
+      status: MembershipStatus.PENDING,
+      freezeDays: 0,
+    },
+  ],
+  { session },
+);
+
 
       // Record renewal against the previous membership.
       await MembershipHistory.create(

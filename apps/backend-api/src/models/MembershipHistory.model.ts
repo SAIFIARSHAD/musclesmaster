@@ -10,6 +10,7 @@ export enum MembershipHistoryAction {
   UNFROZEN = 'UNFROZEN',
   EXPIRED = 'EXPIRED',
   REPLACED = 'REPLACED',
+  PRICE_UPDATED = 'PRICE_UPDATED',
 }
 
 export interface IMembershipHistory extends Document {

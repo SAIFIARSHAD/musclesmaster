@@ -1,4 +1,3 @@
-
 import mongoose, { Schema, Document } from 'mongoose';
 import { randomUUID } from 'crypto';
 
@@ -27,6 +26,8 @@ export interface IRefund extends Document {
 
   requestedBy: mongoose.Types.ObjectId;
   approvedBy?: mongoose.Types.ObjectId | null;
+  rejectedBy?: mongoose.Types.ObjectId | null;
+  rejectedAt?: Date | null;
 
   approvalNote?: string;
 
@@ -120,6 +121,18 @@ const refundSchema = new Schema<IRefund>(
       ref: 'User',
       default: null,
     },
+
+
+    rejectedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    },
+
+    rejectedAt: {
+    type: Date,
+    default: null,
+  },
 
     approvalNote: {
       type: String,

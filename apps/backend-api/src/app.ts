@@ -11,6 +11,9 @@ import memberRoutes from './routes/member.routes';
 import membershipPlanRoutes from './routes/membershipPlan.routes';
 import membershipRoutes from './routes/membership.routes';
 import attendanceRoutes from './routes/attendance.routes';
+import paymentRoutes from './routes/payment.routes';
+import invoiceRoutes from './routes/invoice.routes';
+import refundRoutes from './routes/refund.routes';
 
 const app: Application = express();
 
@@ -42,5 +45,9 @@ app.use('/api/members', memberRoutes);
 app.use('/api/membership-plans', membershipPlanRoutes);
 app.use('/api/memberships', membershipRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/refunds', refundRoutes);
 
 export default app;

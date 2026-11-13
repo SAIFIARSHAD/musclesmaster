@@ -188,7 +188,7 @@ export const assignMembership = async (
 
       const endDate = calculateEndDate(startDate, plan.duration);
 
-     const [membership] = await Membership.create(
+const [membership] = await Membership.create(
   [
     {
       memberId: member._id,

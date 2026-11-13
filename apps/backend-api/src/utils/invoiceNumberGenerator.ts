@@ -1,4 +1,3 @@
-
 import { Counter } from '../models/Counter.model';
 
 export const generateInvoiceNumber = async (

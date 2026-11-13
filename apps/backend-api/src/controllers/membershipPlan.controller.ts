@@ -136,13 +136,25 @@ export async function updateMembershipPlanHandler(
       });
     }
 
-    const plan = await updateMembershipPlan(planId, req.body);
+if (!req.user?.userId) {
+  return res.status(401).json({
+    success: false,
+    message: 'Unauthorized: User information missing',
+  });
+}
 
-    return res.status(200).json({
-      success: true,
-      message: 'Membership plan updated successfully',
-      data: plan,
-    });
+const result = await updateMembershipPlan(
+  planId,
+  req.body,
+  req.user.userId,
+);
+
+return res.status(200).json({
+  success: true,
+  message: 'Membership plan updated successfully',
+  data: result.plan,
+  repricedMemberships: result.repricedMemberships,
+});
   } catch (error) {
     return res.status(statusOf(error)).json({
       success: false,
