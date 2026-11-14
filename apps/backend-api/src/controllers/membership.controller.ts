@@ -63,7 +63,6 @@ const getActor = (req: AuthRequest): MembershipActor | null => {
     branchId: req.user.branchId,
   };
 };
-
 /**
  * POST /api/memberships
  * Assign a membership to a member.
@@ -108,7 +107,6 @@ export const assignMembershipHandler = async (
     });
   }
 };
-
 /**
  * GET /api/memberships
  * Get memberships with filters and pagination.
@@ -168,7 +166,6 @@ export const getMembershipsHandler = async (
     });
   }
 };
-
 /**
  * GET /api/memberships/:membershipId
  * Get membership details and history.

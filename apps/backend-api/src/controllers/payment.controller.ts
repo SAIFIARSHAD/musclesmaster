@@ -1,10 +1,8 @@
-
 import { Response } from 'express';
 
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { UserRole } from '../constants/roles.enum';
 import { PaymentMethod } from '../models/Payment.model';
-
 import {
   createMembershipPayment,
   getPaymentHistory,
@@ -115,7 +113,6 @@ export const createMembershipPaymentHandler = async (
   }
 };
 
-
 export const getPaymentHistoryHandler = async (
   req: AuthRequest,
   res: Response,
@@ -161,7 +158,6 @@ export const getPaymentHistoryHandler = async (
   });
 }
 };
-
 
 export const getMembershipPaymentSummaryHandler = async (
   req: AuthRequest,

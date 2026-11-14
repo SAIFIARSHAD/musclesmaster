@@ -126,8 +126,6 @@ export const qrCheckInHandler = async (
   }
 };
 
-
-
 export const manualCheckInHandler = async (
   req: AuthRequest,
   res: Response,
@@ -179,8 +177,6 @@ export const manualCheckInHandler = async (
     });
   }
 };
-
-
 /**
  * POST /api/attendance/members/:memberId/qr
  *
@@ -233,7 +229,6 @@ export const generateMemberQrHandler = async (
   }
 };
 
-
 /**
  * POST /api/attendance/qr-check-out
  * QR-based member check-out
@@ -261,7 +256,7 @@ export const qrCheckOutHandler = async (
       });
     }
 
-    const result = await checkOutByQr(qrCode, actor);
+ const result = await checkOutByQr(qrCode, actor);
 
     try {
   emitAttendanceUpdate('attendance:check-out', result.attendance);

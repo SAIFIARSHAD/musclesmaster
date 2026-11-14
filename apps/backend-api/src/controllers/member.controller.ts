@@ -63,7 +63,6 @@ const getActor = (req: AuthRequest): MemberActor | null => {
     branchId: req.user.branchId,
   };
 };
-
 /**
  * POST /api/members
  * Register a new gym member.
@@ -118,7 +117,6 @@ export const createMemberHandler = async (
     });
   }
 };
-
 /**
  * GET /api/members
  * Get members with search, filters and pagination.
@@ -178,9 +176,6 @@ export const getMembersHandler = async (
     });
   }
 };
-
-
-
 /**
  * GET /api/members/:memberId
  * Get complete details of one gym member.
@@ -228,7 +223,6 @@ export const getMemberByIdHandler = async (
   }
 };
 
-
 export const updateMemberHandler = async (
   req: AuthRequest,
   res: Response,
@@ -251,7 +245,6 @@ export const updateMemberHandler = async (
     message: 'Unauthorized',
   });
 }
-
     const updateData: UpdateMemberInput = {
       firstName: req.body.firstName,
       lastName: req.body.lastName,
@@ -289,7 +282,6 @@ export const updateMemberHandler = async (
     });
   }
 };
-
 
 export const updateMemberTrainerHandler = async (
   req: AuthRequest,
@@ -350,11 +342,7 @@ const result = await updateMemberTrainer(
   }
 };
 
-/**
- * PATCH /api/members/:memberId/transfer-branch
- * Transfer a member to another branch.
- */
-/**
+/*
  * PATCH /api/members/:memberId/transfer-branch
  * Transfer a member to another branch.
  */

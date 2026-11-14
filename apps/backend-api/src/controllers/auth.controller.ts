@@ -1,4 +1,3 @@
-
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 
@@ -155,7 +154,6 @@ export const logout = async (req: Request, res: Response) => {
   ? await getSessionOwnerByRefreshToken(refreshToken)
   : null;
 
-    // Record the audit event even if there is no refresh cookie.
     // The current endpoint does not identify a user from the cookie here.
     if (refreshToken) {
       await revokeSessionByRefreshToken(refreshToken);
