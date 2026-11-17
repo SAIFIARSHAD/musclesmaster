@@ -366,8 +366,10 @@ export async function getMembers(
     filter.$or = [
       { firstName: regex },
       { lastName: regex },
+      { email: regex },
       { mobile: regex },
       { memberId: regex },
+
     ];
   }
 

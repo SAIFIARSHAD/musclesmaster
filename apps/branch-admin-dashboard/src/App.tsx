@@ -9,10 +9,12 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import DashboardPage from './pages/DashboardPage';
+import MembershipsPage from './pages/MembershipsPage';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 
 import { useAuth } from './context/AuthContext';
+import MembersPage from './pages/MembersPage';
 
 const LoginRoute = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -76,14 +78,11 @@ const App = () => (
             element={<DashboardPage />}
           />
 
-          <Route
-            path="/members"
-            element={<ComingSoonPage title="Members Management" />}
-          />
+          <Route path="/members" element={<MembersPage />} />
 
-          <Route
+         <Route
             path="/memberships"
-            element={<ComingSoonPage title="Membership Management" />}
+            element={<MembershipsPage />}
           />
 
           <Route
