@@ -14,6 +14,8 @@ import attendanceRoutes from './routes/attendance.routes';
 import paymentRoutes from './routes/payment.routes';
 import invoiceRoutes from './routes/invoice.routes';
 import refundRoutes from './routes/refund.routes';
+import receptionRoutes from './routes/reception.routes';
+
 
 const app: Application = express();
 
@@ -53,5 +55,6 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/refunds', refundRoutes);
+app.use('/api/reception', receptionRoutes);
 
 export default app;

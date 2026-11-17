@@ -1,21 +1,97 @@
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+} from 'react-router-dom';
+
+import { AuthProvider } from './context/AuthContext';
+
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import DashboardLayout from './components/layout/DashboardLayout';
+import MemberRegistrationPage from './pages/MemberRegistrationPage';
+
+import LoginPage from './pages/LoginPage';
+import Dashboard from './pages/Dashboard';
+import ComingSoon from './pages/ComingSoon';
+
 function App() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100">
-      <div className="rounded-xl bg-white p-10 text-center shadow-lg">
-        <h1 className="text-3xl font-bold text-slate-900">
-          MusclesMaster AI
-        </h1>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<LoginPage />} />
 
-        <p className="mt-3 text-lg font-medium text-emerald-600">
-          Reception Portal
-        </p>
+          {/* Protected Reception routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<DashboardLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
 
-        <p className="mt-2 text-sm text-slate-500">
-          Reception application foundation is ready.
-        </p>
-      </div>
-    </main>
-  )
+              <Route
+                path="/members"
+                element={
+                  <ComingSoon
+                    title="Members"
+                    description="Search and manage gym members from the reception portal."
+                  />
+                }
+              />
+
+             <Route
+                path="/members/new"
+                element={<MemberRegistrationPage />}
+              />
+
+              <Route
+                path="/attendance"
+                element={
+                  <ComingSoon
+                    title="Attendance"
+                    description="QR scanning and manual check-in/check-out will be implemented in Week 7."
+                  />
+                }
+              />
+
+              <Route
+                path="/memberships"
+                element={
+                  <ComingSoon
+                    title="Memberships"
+                    description="Membership operations and renewals will be implemented in Week 7."
+                  />
+                }
+              />
+
+              <Route
+                path="/leads"
+                element={
+                  <ComingSoon
+                    title="Leads & Inquiries"
+                    description="Reception CRM and follow-up management will be implemented in Week 7."
+                  />
+                }
+              />
+
+              <Route
+                path="/payments"
+                element={
+                  <ComingSoon
+                    title="Payments"
+                    description="Payment collection will be connected through the common payment module."
+                  />
+                }
+              />
+            </Route>
+          </Route>
+
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
