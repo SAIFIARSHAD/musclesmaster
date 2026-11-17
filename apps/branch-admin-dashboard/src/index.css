@@ -48,3 +48,21 @@ button:disabled {
 #root {
     min-height: 100vh;
 }
+
+
+/* Attendance and form fields */
+
+@layer components {
+    .field {
+        @apply block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-all duration-200;
+    }
+    .field:focus {
+        @apply border-[#F4510B] ring-4 ring-orange-500/10;
+    }
+    .field::placeholder {
+        @apply text-slate-400;
+    }
+    select.field {
+        @apply cursor-pointer;
+    }
+}

@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from 'react';
 import {
   X,
@@ -11,9 +10,13 @@ import {
   Snowflake,
   Clock,
   AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 
-import { getMembershipByIdApi } from '../../api/memberships.api';
+import {
+  getMembershipByIdApi,
+  unfreezeMembershipApi,
+} from '../../api/memberships.api';
 
 import type {
   Membership,
@@ -34,6 +37,11 @@ const MembershipDetails = ({
   const [history, setHistory] = useState<MembershipHistoryType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+const [showUnfreezeConfirm, setShowUnfreezeConfirm] = useState(false);
+const [isUnfreezing, setIsUnfreezing] = useState(false);
+const [actionMessage, setActionMessage] = useState('');
+const [actionError, setActionError] = useState('');
 
   const fetchDetails = useCallback(async () => {
     try {
@@ -69,6 +77,45 @@ const MembershipDetails = ({
   useEffect(() => {
     fetchDetails();
   }, [fetchDetails]);
+
+  const handleUnfreeze = async () => {
+  if (!membership || membership.status !== 'FROZEN') return;
+
+  try {
+    setIsUnfreezing(true);
+    setActionError('');
+    setActionMessage('');
+
+    const response = await unfreezeMembershipApi(membership._id);
+
+    setActionMessage(
+      response.message || 'Membership unfrozen successfully.',
+    );
+
+    setShowUnfreezeConfirm(false);
+
+    await fetchDetails();
+  } catch (err: unknown) {
+    const message =
+      typeof err === 'object' &&
+      err !== null &&
+      'response' in err
+        ? (
+            err as {
+              response?: {
+                data?: {
+                  message?: string;
+                };
+              };
+            }
+          ).response?.data?.message
+        : undefined;
+
+    setActionError(message || 'Unable to unfreeze membership.');
+  } finally {
+    setIsUnfreezing(false);
+  }
+};
 
   const formatDate = (date?: string) => {
     if (!date) return '—';
@@ -170,6 +217,19 @@ const MembershipDetails = ({
             </div>
           ) : membership ? (
             <div className="space-y-6">
+              {actionMessage && (
+  <div className="flex items-center gap-2 rounded-xl border border-green-100 bg-green-50 p-3 text-sm text-green-700">
+    <CheckCircle2 size={18} />
+    {actionMessage}
+  </div>
+)}
+
+{actionError && (
+  <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+    <AlertCircle size={18} />
+    {actionError}
+  </div>
+)}
               {/* Membership Header */}
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -300,6 +360,7 @@ const MembershipDetails = ({
                 title="Freeze Information"
                 icon={<Snowflake size={18} />}
               >
+               
                 <DetailItem
                   label="Total Freeze Days"
                   value={`${membership.freezeDays || 0} days`}
@@ -315,6 +376,40 @@ const MembershipDetails = ({
                   value={formatDate(membership.freezeEndDate)}
                 />
               </DetailSection>
+
+               {/* Unfreeze Action */}
+              {membership.status === 'FROZEN' && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <Snowflake className="mt-0.5 text-blue-600" size={20} />
+
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-blue-900">
+                        Membership Currently Frozen
+                      </h4>
+
+                      <p className="mt-1 text-xs text-blue-700">
+                        You can manually unfreeze this membership before its
+                        scheduled unfreeze date.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionError('');
+                          setActionMessage('');
+                          setShowUnfreezeConfirm(true);
+                        }}
+                        disabled={isUnfreezing}
+                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#14243B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#203957] disabled:opacity-50"
+                      >
+                        <RefreshCw size={16} />
+                        Unfreeze Membership
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Membership History */}
               <section>
@@ -404,6 +499,58 @@ const MembershipDetails = ({
           </button>
         </div>
       </div>
+
+{showUnfreezeConfirm && membership?.status === 'FROZEN' && (
+  <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4">
+    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+        <Snowflake size={24} />
+      </div>
+
+      <h3 className="text-lg font-bold text-[#14243B]">
+        Unfreeze Membership?
+      </h3>
+
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        Are you sure you want to manually unfreeze this membership?
+        The membership will become active again, and the backend
+        will adjust its expiry date according to the actual frozen
+        duration.
+      </p>
+
+      <div className="mt-6 flex justify-end gap-3">
+        <button
+          type="button"
+          disabled={isUnfreezing}
+          onClick={() => setShowUnfreezeConfirm(false)}
+          className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          disabled={isUnfreezing}
+          onClick={handleUnfreeze}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#14243B] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#203957] disabled:opacity-50"
+        >
+          {isUnfreezing ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Unfreezing...
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={16} />
+              Confirm Unfreeze
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };

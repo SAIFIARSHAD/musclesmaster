@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 
 import {
@@ -9,6 +8,12 @@ import {
   manualCheckOutHandler,
   branchAttendanceHandler,
   memberAttendanceHistoryHandler,
+  createManualAttendanceHandler,
+  updateAttendanceHandler,
+  voidAttendanceHandler,
+  attendanceAuditHistoryHandler,
+  liveAttendanceHandler,
+  dailyAttendanceHandler
 } from '../controllers/attendance.controller';
 
 import { authenticate } from '../middlewares/auth.middleware';
@@ -23,6 +28,9 @@ import {
   manualCheckOutValidator,
   branchAttendanceQueryValidator,
   memberAttendanceHistoryValidator,
+  manualAttendanceValidator,
+  updateAttendanceValidator,
+  voidAttendanceValidator,
 } from '../validators/attendance.validator';
 
 const router = Router();
@@ -94,6 +102,53 @@ router.post(
     UserRole.RECEPTION,
   ),
   generateMemberQrHandler,
+);
+
+// Branch Admin: Create historical manual attendance.
+router.post(
+  '/manual',
+  allowRoles(UserRole.BRANCH_ADMIN),
+  manualAttendanceValidator,
+  validateRequest,
+  createManualAttendanceHandler,
+);
+
+
+// Branch Admin: Correct an existing attendance session.
+router.put(
+  '/:attendanceId',
+  allowRoles(UserRole.BRANCH_ADMIN),
+  updateAttendanceValidator,
+  validateRequest,
+  updateAttendanceHandler,
+);
+
+
+// Branch Admin: Void an incorrect attendance session.
+router.patch(
+  '/:attendanceId/void',
+  allowRoles(UserRole.BRANCH_ADMIN),
+  voidAttendanceValidator,
+  validateRequest,
+  voidAttendanceHandler,
+);
+// Branch Admin: View attendance audit history.
+router.get(
+  '/:attendanceId/audit',
+  allowRoles(UserRole.BRANCH_ADMIN),
+  attendanceAuditHistoryHandler,
+);
+
+// Branch Admin: Members currently inside the gym.
+router.get(
+  '/live',
+  allowRoles(UserRole.BRANCH_ADMIN),
+  liveAttendanceHandler,
+);
+router.get(
+  '/daily',
+  allowRoles(UserRole.BRANCH_ADMIN),
+  dailyAttendanceHandler,
 );
 
 export default router;

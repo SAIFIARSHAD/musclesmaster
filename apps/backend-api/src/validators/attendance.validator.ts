@@ -1,4 +1,3 @@
-
 import { body, param, query } from 'express-validator';
 
 // Validate YYYY-MM-DD and ensure it is a real calendar date.
@@ -17,7 +16,39 @@ const isValidDateKey = (value: string): boolean => {
   );
 };
 
-// Reception Manual Check-in.
+const validDateQuery = (field: string) =>
+  query(field)
+    .optional()
+    .custom(isValidDateKey)
+    .withMessage(`${field} must be a valid date in YYYY-MM-DD format.`);
+
+const validPagination = [
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer.'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100.'),
+];
+
+const validAttendanceId = param('attendanceId')
+  .notEmpty()
+  .withMessage('Attendance ID is required.')
+  .isMongoId()
+  .withMessage('Invalid attendance record ID.');
+
+const validIsoDateTime = (field: string) =>
+  body(field)
+    .isISO8601({ strict: true, strictSeparator: true })
+    .withMessage(`${field} must be a valid ISO date-time.`);
+
+// --------------------------------------------------
+// EXISTING QR / RECEPTION VALIDATORS
+// --------------------------------------------------
+
 export const manualCheckInValidator = [
   body('memberId')
     .notEmpty()
@@ -26,7 +57,6 @@ export const manualCheckInValidator = [
     .withMessage('Invalid member ID.'),
 ];
 
-// QR Check-in.
 export const qrCheckInValidator = [
   body('qrCode')
     .isString()
@@ -36,7 +66,6 @@ export const qrCheckInValidator = [
     .withMessage('QR code is required.'),
 ];
 
-// Legacy validators retained for compatibility.
 export const checkOutValidator = [
   param('id')
     .notEmpty()
@@ -52,7 +81,6 @@ export const attendanceListValidator = [
     .withMessage('Invalid ID.'),
 ];
 
-// QR Check-out.
 export const qrCheckOutValidator = [
   body('qrCode')
     .isString()
@@ -62,7 +90,6 @@ export const qrCheckOutValidator = [
     .withMessage('QR code is required.'),
 ];
 
-// Reception Manual Check-out.
 export const manualCheckOutValidator = [
   body('memberId')
     .notEmpty()
@@ -71,7 +98,7 @@ export const manualCheckOutValidator = [
     .withMessage('Invalid member ID.'),
 ];
 
-// Branch Attendance List Query.
+// Legacy branch attendance query.
 export const branchAttendanceQueryValidator = [
   query('date')
     .optional()
@@ -83,18 +110,10 @@ export const branchAttendanceQueryValidator = [
     .isIn(['checked-in', 'checked-out'])
     .withMessage('Invalid attendance status.'),
 
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer.'),
-
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100.'),
+  ...validPagination,
 ];
 
-// Member Attendance History.
+// Member attendance history.
 export const memberAttendanceHistoryValidator = [
   param('memberId')
     .notEmpty()
@@ -102,23 +121,117 @@ export const memberAttendanceHistoryValidator = [
     .isMongoId()
     .withMessage('Invalid member ID.'),
 
-  query('startDate')
-    .optional()
+  validDateQuery('startDate'),
+  validDateQuery('endDate'),
+
+  ...validPagination,
+];
+
+// --------------------------------------------------
+// NEW SESSION-BASED ATTENDANCE VALIDATORS
+// --------------------------------------------------
+
+// Daily attendance filters.
+export const dailyAttendanceQueryValidator = [
+  query('date')
+    .notEmpty()
+    .withMessage('Attendance date is required.')
     .custom(isValidDateKey)
-    .withMessage('Start date must be a valid date in YYYY-MM-DD format.'),
+    .withMessage('Date must be a valid date in YYYY-MM-DD format.'),
 
-  query('endDate')
+  query('status')
     .optional()
+    .isIn(['present', 'absent'])
+    .withMessage('Status must be present or absent.'),
+
+  ...validPagination,
+];
+
+// Live attendance filters.
+export const liveAttendanceQueryValidator = [
+  ...validPagination,
+];
+
+// Manual past-date attendance entry.
+// Both check-in and check-out are required for a completed historical visit.
+export const manualAttendanceValidator = [
+  body('memberId')
+    .notEmpty()
+    .withMessage('Member ID is required.')
+    .isMongoId()
+    .withMessage('Invalid member ID.'),
+
+  body('attendanceDateKey')
+    .notEmpty()
+    .withMessage('Attendance date is required.')
     .custom(isValidDateKey)
-    .withMessage('End date must be a valid date in YYYY-MM-DD format.'),
+    .withMessage('Attendance date must use YYYY-MM-DD format.'),
 
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer.'),
+  validIsoDateTime('checkInTime'),
+  validIsoDateTime('checkOutTime'),
 
-  query('limit')
+  body('reason')
+    .trim()
+    .notEmpty()
+    .withMessage('Manual attendance reason is required.')
+    .isLength({ min: 5, max: 500 })
+    .withMessage('Reason must be between 5 and 500 characters.'),
+];
+
+// Update existing attendance session.
+export const updateAttendanceValidator = [
+  validAttendanceId,
+
+  body('checkInTime')
     .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100.'),
+    .isISO8601({ strict: true, strictSeparator: true })
+    .withMessage('Check-in time must be a valid ISO date-time.'),
+
+  body('checkOutTime')
+    .optional({ nullable: true })
+    .isISO8601({ strict: true, strictSeparator: true })
+    .withMessage('Check-out time must be a valid ISO date-time.'),
+
+  body('reason')
+    .trim()
+    .notEmpty()
+    .withMessage('Correction reason is required.')
+    .isLength({ min: 5, max: 500 })
+    .withMessage('Reason must be between 5 and 500 characters.'),
+
+  body().custom((value) => {
+    if (
+      value.checkInTime === undefined &&
+      value.checkOutTime === undefined
+    ) {
+      throw new Error('At least one attendance time must be updated.');
+    }
+
+    return true;
+  }),
+];
+
+// Void attendance session.
+export const voidAttendanceValidator = [
+  validAttendanceId,
+
+  body('reason')
+    .trim()
+    .notEmpty()
+    .withMessage('Void reason is required.')
+    .isLength({ min: 5, max: 500 })
+    .withMessage('Reason must be between 5 and 500 characters.'),
+];
+
+// Daily, weekly and monthly report filters.
+export const attendanceReportQueryValidator = [
+  validDateQuery('startDate'),
+  validDateQuery('endDate'),
+
+  query('period')
+    .optional()
+    .isIn(['daily', 'weekly', 'monthly', 'custom'])
+    .withMessage('Invalid report period.'),
+
+  ...validPagination,
 ];

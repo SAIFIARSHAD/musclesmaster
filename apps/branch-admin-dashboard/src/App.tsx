@@ -10,6 +10,9 @@ import LoginPage from './pages/LoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import MembershipsPage from './pages/MembershipsPage';
+import FreezeRequestsPage from './pages/FreezeRequestsPage';
+import AttendancePage from './pages/AttendancePage';
+import StaffManagementPage from './pages/StaffManagementPage';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 
@@ -86,13 +89,18 @@ const App = () => (
           />
 
           <Route
+            path="/freeze-requests"
+            element={<FreezeRequestsPage />}
+          />
+
+          <Route
             path="/attendance"
-            element={<ComingSoonPage title="Attendance Management" />}
+            element={<AttendancePage />}
           />
 
           <Route
             path="/trainers"
-            element={<ComingSoonPage title="Trainer Management" />}
+            element={<Navigate to="/staff" replace />}
           />
 
           <Route
@@ -107,7 +115,7 @@ const App = () => (
 
           <Route
             path="/staff"
-            element={<ComingSoonPage title="Staff Management" />}
+            element={<StaffManagementPage />}
           />
 
           <Route

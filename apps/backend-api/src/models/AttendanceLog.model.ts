@@ -2,11 +2,14 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { randomUUID } from 'crypto';
 
+// Attendance session lifecycle.
 export enum AttendanceStatus {
   CHECKED_IN = 'checked-in',
   CHECKED_OUT = 'checked-out',
+  VOIDED = 'voided',
 }
 
+// How the member's attendance was recorded.
 export enum AttendanceMethod {
   QR = 'QR',
   MANUAL = 'MANUAL',
@@ -17,6 +20,8 @@ export interface IAttendanceLog extends Document {
 
   memberId: mongoose.Types.ObjectId;
   branchId: mongoose.Types.ObjectId;
+
+  // India calendar date: YYYY-MM-DD
   attendanceDateKey: string;
 
   checkInTime: Date;
@@ -26,6 +31,18 @@ export interface IAttendanceLog extends Document {
   checkOutMethod?: AttendanceMethod | null;
 
   attendanceStatus: AttendanceStatus;
+
+  // Calculated session duration in minutes.
+  durationMinutes: number | null;
+
+  // Manual attendance information.
+  isManual: boolean;
+  manualReason?: string | null;
+
+  // Void / cancellation information.
+  voidedAt?: Date | null;
+  voidedBy?: mongoose.Types.ObjectId | null;
+  voidReason?: string | null;
 
   createdAt: Date;
   updatedAt: Date;
@@ -44,17 +61,20 @@ const attendanceLogSchema = new Schema<IAttendanceLog>(
       type: Schema.Types.ObjectId,
       ref: 'Member',
       required: true,
+      index: true,
     },
 
     branchId: {
       type: Schema.Types.ObjectId,
       ref: 'Branch',
       required: true,
+      index: true,
     },
 
     attendanceDateKey: {
       type: String,
       required: true,
+      match: /^\d{4}-\d{2}-\d{2}$/,
     },
 
     checkInTime: {
@@ -85,36 +105,85 @@ const attendanceLogSchema = new Schema<IAttendanceLog>(
       default: AttendanceStatus.CHECKED_IN,
       required: true,
     },
+
+    durationMinutes: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+
+    isManual: {
+      type: Boolean,
+      default: false,
+    },
+
+    manualReason: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 500,
+    },
+
+    voidedAt: {
+      type: Date,
+      default: null,
+    },
+
+    voidedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    voidReason: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 500,
+    },
   },
   {
     timestamps: true,
   },
 );
 
-// Member attendance history index
+// Member's attendance history.
 attendanceLogSchema.index({
   memberId: 1,
+  attendanceDateKey: -1,
   checkInTime: -1,
 });
 
-// Branch attendance history index
+// Branch's daily attendance.
 attendanceLogSchema.index({
   branchId: 1,
-  checkInTime: -1,
+  attendanceDateKey: -1,
 });
 
-// Attendance status index
+// Branch's live attendance.
 attendanceLogSchema.index({
+  branchId: 1,
   attendanceStatus: 1,
   checkInTime: -1,
 });
 
-// Prevent duplicate daily attendance for a member
+// Reports and date-wise session queries.
+attendanceLogSchema.index({
+  branchId: 1,
+  attendanceDateKey: 1,
+  attendanceStatus: 1,
+});
+
+// Prevent multiple simultaneous open sessions for one member.
+// A member can still have multiple completed sessions on the same day.
 attendanceLogSchema.index(
-  { memberId: 1, attendanceDateKey: 1 },
+  { memberId: 1 },
   {
     unique: true,
-    name: 'unique_member_daily_attendance',
+    name: 'unique_member_open_attendance_session',
+    partialFilterExpression: {
+      attendanceStatus: AttendanceStatus.CHECKED_IN,
+    },
   },
 );
 

@@ -11,6 +11,7 @@ import {
   X,
   UserRoundCog,
   Receipt,
+   Snowflake,
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -56,15 +57,16 @@ const navigation: NavigationGroup[] = [
         icon: CreditCard,
       },
       {
+      title: 'Freeze Requests',
+      path: '/freeze-requests',
+      icon: Snowflake,
+      },
+      {
         title: 'Attendance',
         path: '/attendance',
         icon: ClipboardCheck,
       },
-      {
-        title: 'Trainers',
-        path: '/trainers',
-        icon: Dumbbell,
-      },
+      
     ],
   },
   {
@@ -80,16 +82,17 @@ const navigation: NavigationGroup[] = [
   {
     label: 'INSIGHTS & SETTINGS',
     items: [
+            {
+        title: 'Staff Management',
+        path: '/staff',
+        icon: UserRoundCog,
+      },
       {
         title: 'Reports',
         path: '/reports',
         icon: ChartNoAxesCombined,
       },
-      {
-        title: 'Staff Management',
-        path: '/staff',
-        icon: UserRoundCog,
-      },
+
       {
         title: 'Settings',
         path: '/settings',
