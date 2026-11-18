@@ -4,22 +4,6 @@ import mongoose from 'mongoose';
 import { AuthRequest } from './auth.middleware';
 import { UserRole } from '../constants/roles.enum';
 
-/**
- * Provides a branch scope for database queries.
- *
- * Super Admin:
- *   Can query across branches unless a branchId is explicitly supplied.
- *
- * Branch Admin and other branch-assigned roles:
- *   Must remain within their assigned branch.
- *
- * Usage:
- *   const scope = getBranchScope(req);
- *   const records = await SomeModel.find({ ...scope });
- *
- * This helper does not modify database queries automatically.
- * Call it explicitly in the relevant service.
- */
 export function getBranchScope(
   req: AuthRequest,
 ): { branchId?: string } {

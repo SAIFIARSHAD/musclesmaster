@@ -1,5 +1,4 @@
 import { Response } from 'express';
-
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { UserRole } from '../constants/roles.enum';
 import { generateInvoicePdf } from '../services/invoice.service';

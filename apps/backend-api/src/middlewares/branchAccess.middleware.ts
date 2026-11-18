@@ -1,6 +1,5 @@
 import { Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
-
 import { AuthRequest } from './auth.middleware';
 import { Branch } from '../models/Branch.model';
 import { User } from '../models/User.model';
@@ -32,12 +31,9 @@ function getRequestedBranchId(req: AuthRequest): string | undefined {
   return undefined;
 }
 
-/**
+/*
  * Allows Super Admin to access all branches.
  * Restricts other authenticated users to their assigned branch.
- *
- * Apply this middleware only to routes that are intended to be
- * branch-scoped. Do not use it on public routes.
  */
 export async function branchAccess(
   req: AuthRequest,
@@ -105,8 +101,6 @@ export async function branchAccess(
 /**
  * Validates that a manager is an active Branch Admin assigned
  * to the specified branch and is not already managing another branch.
- *
- * This is a reusable validation helper, not an Express middleware.
  */
 export async function validateBranchManager(
   managerId: string,

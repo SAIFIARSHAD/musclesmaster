@@ -1,5 +1,4 @@
 import { Response } from 'express';
-
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { UserRole } from '../constants/roles.enum';
 
@@ -90,7 +89,6 @@ export const createRefundRequestHandler = async (
   }
 };
 
-
 export const reviewRefundRequestHandler = async (
   req: AuthRequest,
   res: Response,
@@ -133,8 +131,6 @@ export const reviewRefundRequestHandler = async (
     });
   }
 };
-
-
 
 export const processRefundHandler = async (
   req: AuthRequest,

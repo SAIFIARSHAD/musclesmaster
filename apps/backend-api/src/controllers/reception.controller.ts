@@ -1,6 +1,4 @@
-
 import { Response } from 'express';
-
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { Branch } from '../models/Branch.model';
 
