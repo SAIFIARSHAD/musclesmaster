@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 
 import {
   Member,
@@ -116,6 +116,13 @@ const createAttendanceAudit = async (data: {
   });
 };
 
+const getMembershipDateValue = (dateKey: string): Date => {
+  if (!isValidDateKey(dateKey)) {
+    return fail('Invalid membership date.', 400);
+  }
+
+  return new Date(`${dateKey}T00:00:00.000Z`);
+};
 
 export interface AttendanceActor {
   userId: string;
@@ -182,13 +189,15 @@ export const checkInByQr = async (
   const { start: todayStart, end: todayEnd } =
     getIndiaDayBounds(attendanceDateKey);
 
-  const membership = await Membership.findOne({
-    memberId: member._id,
-    branchId: member.branchId,
-    status: MembershipStatus.ACTIVE,
-    startDate: { $lte: todayEnd },
-    endDate: { $gte: todayStart },
-  }).sort({ endDate: -1 });
+  const membershipDate = getMembershipDateValue(attendanceDateKey);
+
+const membership = await Membership.findOne({
+  memberId: member._id,
+  branchId: member.branchId,
+  status: MembershipStatus.ACTIVE,
+  startDate: { $lte: membershipDate },
+  endDate: { $gte: membershipDate },
+});
 
   if (!membership) {
     return fail(
@@ -314,13 +323,15 @@ export const checkInManually = async (
   const { start: todayStart, end: todayEnd } =
     getIndiaDayBounds(attendanceDateKey);
 
-  const membership = await Membership.findOne({
-    memberId: member._id,
-    branchId: member.branchId,
-    status: MembershipStatus.ACTIVE,
-    startDate: { $lte: todayEnd },
-    endDate: { $gte: todayStart },
-  }).sort({ endDate: -1 });
+const membershipDate = getMembershipDateValue(attendanceDateKey);
+
+const membership = await Membership.findOne({
+  memberId: member._id,
+  branchId: member.branchId,
+  status: MembershipStatus.ACTIVE,
+  startDate: { $lte: membershipDate },
+  endDate: { $gte: membershipDate },
+});
 
   if (!membership) {
     return fail(
@@ -506,6 +517,436 @@ export const checkOutByQr = async (
   };
 };
 
+
+export const processQrAttendance = async (
+  qrCode: string,
+  actor: AttendanceActor,
+) => {
+  if (!qrCode?.trim()) {
+    return fail('QR code is required.', 400);
+  }
+
+  if (!actor.branchId || !mongoose.isValidObjectId(actor.branchId)) {
+    return fail('A valid assigned branch is required.', 403);
+  }
+
+  const tokenHash = createHash('sha256')
+    .update(qrCode.trim())
+    .digest('hex');
+
+  const member = await Member.findOne({
+    qrTokenHash: tokenHash,
+  });
+
+  if (!member) {
+    return fail('Invalid or unrecognized member QR code.', 404);
+  }
+
+  if (String(member.branchId) !== actor.branchId) {
+    return fail(
+      'This member does not belong to your assigned branch.',
+      403,
+    );
+  }
+
+  const now = new Date();
+  const lockId = randomUUID();
+  const lockUntil = new Date(now.getTime() + 30 * 1000);
+
+  // Atomically acquire the member QR lock.
+  const lockedMember = await Member.findOneAndUpdate(
+    {
+      _id: member._id,
+      branchId: new mongoose.Types.ObjectId(actor.branchId),
+      $and: [
+        {
+          $or: [
+            { qrAttendanceCooldownUntil: null },
+            { qrAttendanceCooldownUntil: { $exists: false } },
+            { qrAttendanceCooldownUntil: { $lte: now } },
+          ],
+        },
+        {
+          $or: [
+            { qrAttendanceLockUntil: null },
+            { qrAttendanceLockUntil: { $exists: false } },
+            { qrAttendanceLockUntil: { $lte: now } },
+          ],
+        },
+      ],
+    },
+    {
+      $set: {
+        qrAttendanceLockId: lockId,
+        qrAttendanceLockUntil: lockUntil,
+        qrAttendanceCooldownUntil: lockUntil,
+      },
+    },
+    { new: true },
+  );
+
+  if (!lockedMember) {
+    const latestMember = await Member.findById(member._id);
+
+    const activeUntil =
+      latestMember?.qrAttendanceCooldownUntil ||
+      latestMember?.qrAttendanceLockUntil ||
+      new Date(Date.now() + 30 * 1000);
+
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((activeUntil.getTime() - Date.now()) / 1000),
+    );
+
+    throw Object.assign(
+      new Error('This member QR code is temporarily blocked.'),
+      {
+        statusCode: 429,
+        data: {
+          member: {
+            memberId: member.memberId,
+            name: `${member.firstName} ${member.lastName}`,
+          },
+          cooldownUntil: activeUntil.toISOString(),
+          retryAfterSeconds,
+        },
+      },
+    );
+  }
+
+  try {
+    // Determine whether the member is checking in or checking out.
+    const existingOpenSession = await AttendanceLog.findOne({
+      memberId: member._id,
+      branchId: member.branchId,
+      attendanceStatus: AttendanceStatus.CHECKED_IN,
+      checkOutTime: null,
+    });
+
+    const action = existingOpenSession ? 'CHECK_OUT' : 'CHECK_IN';
+
+    // Reuse existing QR attendance services.
+    const result =
+      action === 'CHECK_IN'
+        ? await checkInByQr(qrCode, actor)
+        : await checkOutByQr(qrCode, actor);
+
+    // Apply the 2-minute cooldown after successful attendance.
+    const cooldownUntil = new Date(Date.now() + 2 * 60 * 1000);
+
+    const finalized = await Member.findOneAndUpdate(
+      {
+        _id: member._id,
+        qrAttendanceLockId: lockId,
+      },
+      {
+        $set: {
+          qrAttendanceCooldownUntil: cooldownUntil,
+          qrAttendanceLockId: null,
+          qrAttendanceLockUntil: null,
+        },
+      },
+      { new: true },
+    );
+
+    if (!finalized) {
+      throw new Error('Unable to finalize QR attendance cooldown.');
+    }
+
+    return {
+      ...result,
+      action,
+      cooldownUntil: cooldownUntil.toISOString(),
+      retryAfterSeconds: 120,
+    };
+  } catch (error: unknown) {
+    // Release the lock if attendance processing fails.
+    await Member.updateOne(
+      {
+        _id: member._id,
+        qrAttendanceLockId: lockId,
+      },
+      {
+        $set: {
+          qrAttendanceCooldownUntil: null,
+          qrAttendanceLockId: null,
+          qrAttendanceLockUntil: null,
+        },
+      },
+    );
+
+    throw error;
+  }
+};
+
+
+
+export const processManualMemberAttendance = async (
+  memberId: string,
+  actor: AttendanceActor,
+) => {
+  if (!memberId?.trim()) {
+    return fail('Member ID is required.', 400);
+  }
+
+  if (!actor.branchId || !mongoose.isValidObjectId(actor.branchId)) {
+    return fail('A valid assigned branch is required.', 403);
+  }
+
+  if (!mongoose.isValidObjectId(actor.userId)) {
+    return fail('A valid authenticated user is required.', 403);
+  }
+
+  const normalizedMemberId = memberId.trim().toUpperCase();
+
+  const member = await Member.findOne({
+    memberId: normalizedMemberId,
+  });
+
+  if (!member) {
+    return fail('Member not found.', 404);
+  }
+
+  if (member.status !== MemberStatus.ACTIVE) {
+    return fail('This member account is inactive.', 400);
+  }
+
+  if (String(member.branchId) !== actor.branchId) {
+    return fail(
+      'This member does not belong to your assigned branch.',
+      403,
+    );
+  }
+
+  const branch = await Branch.findOne({
+    _id: member.branchId,
+    isActive: true,
+  });
+
+  if (!branch) {
+    return fail('Member branch is inactive.', 400);
+  }
+
+  const now = new Date();
+  const lockId = randomUUID();
+  const lockUntil = new Date(now.getTime() + 30 * 1000);
+
+  // Atomically acquire the manual attendance lock.
+  const lockedMember = await Member.findOneAndUpdate(
+    {
+      _id: member._id,
+      branchId: new mongoose.Types.ObjectId(actor.branchId),
+      $and: [
+        {
+          $or: [
+            { manualAttendanceCooldownUntil: null },
+            { manualAttendanceCooldownUntil: { $exists: false } },
+            { manualAttendanceCooldownUntil: { $lte: now } },
+          ],
+        },
+        {
+          $or: [
+            { manualAttendanceLockUntil: null },
+            { manualAttendanceLockUntil: { $exists: false } },
+            { manualAttendanceLockUntil: { $lte: now } },
+          ],
+        },
+      ],
+    },
+    {
+      $set: {
+        manualAttendanceLockId: lockId,
+        manualAttendanceLockUntil: lockUntil,
+        manualAttendanceCooldownUntil: lockUntil,
+      },
+    },
+    { new: true },
+  );
+
+  if (!lockedMember) {
+    const latestMember = await Member.findById(member._id);
+
+    const activeUntil =
+      latestMember?.manualAttendanceCooldownUntil ||
+      latestMember?.manualAttendanceLockUntil ||
+      new Date(Date.now() + 30 * 1000);
+
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((activeUntil.getTime() - Date.now()) / 1000),
+    );
+
+    throw Object.assign(
+      new Error('Manual attendance is temporarily blocked for this member.'),
+      {
+        statusCode: 429,
+        data: {
+          member: {
+            memberId: member.memberId,
+            name: `${member.firstName} ${member.lastName}`,
+          },
+          cooldownUntil: activeUntil.toISOString(),
+          retryAfterSeconds,
+        },
+      },
+    );
+  }
+
+  try {
+    const existingOpenSession = await AttendanceLog.findOne({
+      memberId: member._id,
+      branchId: member.branchId,
+      attendanceStatus: AttendanceStatus.CHECKED_IN,
+      checkOutTime: null,
+    });
+
+    let attendance;
+    let action: 'CHECK_IN' | 'CHECK_OUT';
+
+    if (existingOpenSession) {
+      // Active session exists: check out.
+      action = 'CHECK_OUT';
+
+      attendance = await AttendanceLog.findOneAndUpdate(
+        {
+          _id: existingOpenSession._id,
+          memberId: member._id,
+          branchId: member.branchId,
+          attendanceStatus: AttendanceStatus.CHECKED_IN,
+          checkOutTime: null,
+        },
+        [
+          {
+            $set: {
+              checkOutTime: now,
+              checkOutMethod: AttendanceMethod.MANUAL,
+              attendanceStatus: AttendanceStatus.CHECKED_OUT,
+              durationMinutes: {
+                $max: [
+                  0,
+                  {
+                    $floor: {
+                      $divide: [
+                        { $subtract: [now, '$checkInTime'] },
+                        60000,
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+        { new: true },
+      );
+
+      if (!attendance) {
+        return fail('Unable to complete check-out. Please try again.', 409);
+      }
+    } else {
+      // No active session: validate membership and check in.
+      action = 'CHECK_IN';
+
+      const attendanceDateKey = getIndiaDateKey(now);
+      const { start: todayStart, end: todayEnd } =
+        getIndiaDayBounds(attendanceDateKey);
+
+const membershipDate = getMembershipDateValue(attendanceDateKey);
+
+const membership = await Membership.findOne({
+  memberId: member._id,
+  branchId: member.branchId,
+  status: MembershipStatus.ACTIVE,
+  startDate: { $lte: membershipDate },
+  endDate: { $gte: membershipDate },
+});
+
+      if (!membership) {
+        return fail(
+          'No valid active membership found. Please check membership status and dates.',
+          403,
+        );
+      }
+
+      attendance = await AttendanceLog.create({
+        memberId: member._id,
+        branchId: member.branchId,
+        attendanceDateKey,
+        checkInTime: now,
+        checkInMethod: AttendanceMethod.MANUAL,
+        checkOutTime: null,
+        checkOutMethod: null,
+        attendanceStatus: AttendanceStatus.CHECKED_IN,
+        durationMinutes: null,
+        isManual: false,
+        manualReason: null,
+        voidedAt: null,
+        voidedBy: null,
+        voidReason: null,
+      });
+    }
+
+    // Apply 2-minute cooldown after successful attendance.
+    const cooldownUntil = new Date(Date.now() + 2 * 60 * 1000);
+
+    const finalized = await Member.findOneAndUpdate(
+      {
+        _id: member._id,
+        manualAttendanceLockId: lockId,
+      },
+      {
+        $set: {
+          manualAttendanceCooldownUntil: cooldownUntil,
+          manualAttendanceLockId: null,
+          manualAttendanceLockUntil: null,
+        },
+      },
+      { new: true },
+    );
+
+    if (!finalized) {
+      throw new Error('Unable to finalize manual attendance cooldown.');
+    }
+
+    return {
+      action,
+      attendance,
+      member: {
+        memberId: member.memberId,
+        name: `${member.firstName} ${member.lastName}`,
+      },
+      branch: {
+        id: branch._id,
+        name: branch.name,
+      },
+      message:
+        action === 'CHECK_IN'
+          ? 'Manual attendance check-in successful.'
+          : 'Manual attendance check-out successful.',
+      cooldownUntil: cooldownUntil.toISOString(),
+      retryAfterSeconds: 120,
+    };
+  } catch (error: unknown) {
+    // Release lock if attendance processing fails.
+    await Member.updateOne(
+      {
+        _id: member._id,
+        manualAttendanceLockId: lockId,
+      },
+      {
+        $set: {
+          manualAttendanceCooldownUntil: null,
+          manualAttendanceLockId: null,
+          manualAttendanceLockUntil: null,
+        },
+      },
+    );
+
+    throw error;
+  }
+};
+
+
 /**
  * Reception Manual Check-out
  *
@@ -516,6 +957,8 @@ export const checkOutByQr = async (
  * 4. Existing open attendance
  * 5. Duplicate check-out
  */
+
+
 
 
 export const checkOutManually = async (

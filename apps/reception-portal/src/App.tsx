@@ -10,6 +10,10 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import DashboardLayout from './components/layout/DashboardLayout';
 import MemberRegistrationPage from './pages/MemberRegistrationPage';
+import MembersPage from './pages/MembersPage';
+import MemberDetailsPage from './pages/MemberDetailsPage';
+import AttendancePage from './pages/AttendancePage';
+import MembershipsPage from './pages/MembershipsPage';
 
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
@@ -30,12 +34,12 @@ function App() {
 
               <Route
                 path="/members"
-                element={
-                  <ComingSoon
-                    title="Members"
-                    description="Search and manage gym members from the reception portal."
-                  />
-                }
+                element={<MembersPage />}
+              />
+
+              <Route
+                path="/members/:memberId"
+                element={<MemberDetailsPage />}
               />
 
              <Route
@@ -43,24 +47,14 @@ function App() {
                 element={<MemberRegistrationPage />}
               />
 
-              <Route
-                path="/attendance"
-                element={
-                  <ComingSoon
-                    title="Attendance"
-                    description="QR scanning and manual check-in/check-out will be implemented in Week 7."
-                  />
-                }
-              />
+            <Route
+              path="/attendance"
+              element={<AttendancePage />}
+            />
 
               <Route
                 path="/memberships"
-                element={
-                  <ComingSoon
-                    title="Memberships"
-                    description="Membership operations and renewals will be implemented in Week 7."
-                  />
-                }
+                element={<MembershipsPage />}
               />
 
               <Route

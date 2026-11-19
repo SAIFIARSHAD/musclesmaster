@@ -1,93 +1,155 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+
 import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  User,
-  Phone,
-  Mail,
-  CalendarDays,
-  MapPin,
-  Dumbbell,
-  Activity,
-} from 'lucide-react';
+  initialForm,
+  registrationSteps,
+  type RegistrationForm,
+} from '../components/members/registration/RegistrationFormTypes';
 
-type Gender = 'MALE' | 'FEMALE' | 'OTHER';
+import RegistrationProgress from '../components/members/registration/RegistrationProgress';
+import PersonalDetailsStep from '../components/members/registration/PersonalDetailsStep';
+import FitnessDetailsStep from '../components/members/registration/FitnessDetailsStep';
+import MembershipStep from '../components/members/registration/MembershipStep';
+import ReviewDetailsStep from '../components/members/registration/ReviewDetailsStep';
+import RegistrationSuccess from '../components/members/registration/RegistrationSuccess';
 
-interface RegistrationForm {
-  firstName: string;
-  lastName: string;
-  mobile: string;
-  email: string;
-  dob: string;
-  gender: Gender;
-  address: string;
-  height: string;
-  weight: string;
-  fitnessGoal: string;
-  medicalConditions: string;
-}
+import {
+  getMembershipPlansApi,
+  type MembershipPlan,
+} from '../api/membershipPlans.api';
 
-const initialForm: RegistrationForm = {
-  firstName: '',
-  lastName: '',
-  mobile: '',
-  email: '',
-  dob: '',
-  gender: 'MALE',
-  address: '',
-  height: '',
-  weight: '',
-  fitnessGoal: '',
-  medicalConditions: '',
+import {
+  getReceptionTrainersApi,
+  type Trainer,
+} from '../api/trainers.api';
+
+import {
+  createMemberApi,
+  type CreatedMember,
+} from '../api/members.api';
+
+import { assignMembershipApi } from '../api/memberships.api';
+
+const getLocalDate = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 };
 
-const steps = [
-  'Personal Details',
-  'Fitness Details',
-  'Membership',
-  'Confirmation',
-];
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error
+  ) {
+    const response = (
+      error as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+      }
+    ).response;
+
+    return response?.data?.message || fallback;
+  }
+
+  return fallback;
+};
 
 export default function MemberRegistrationPage() {
   const navigate = useNavigate();
 
+  // Form state
   const [form, setForm] = useState<RegistrationForm>(initialForm);
+
+  // Registration steps
   const [currentStep, setCurrentStep] = useState(1);
+
+  // Membership and trainer data
+  const [plans, setPlans] = useState<MembershipPlan[]>([]);
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
+
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [selectedTrainerId, setSelectedTrainerId] = useState('');
+
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [optionsError, setOptionsError] = useState('');
+
+  // Registration state
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [createdMember, setCreatedMember] =
+    useState<CreatedMember | null>(null);
 
-  const today = new Date().toISOString().split('T')[0];
+  const [registrationCompleted, setRegistrationCompleted] =
+    useState(false);
 
-  const bmi = useMemo(() => {
-    const height = Number(form.height);
-    const weight = Number(form.weight);
+  const selectedPlan =
+    plans.find((plan) => plan._id === selectedPlanId) ?? null;
 
-    if (!height || !weight || height <= 0 || weight <= 0) {
-      return null;
-    }
+  const selectedTrainer =
+    trainers.find((trainer) => trainer._id === selectedTrainerId) ?? null;
 
-    const heightInMeters = height / 100;
-    return Number((weight / (heightInMeters * heightInMeters)).toFixed(1));
-  }, [form.height, form.weight]);
-
-  const bmiCategory = useMemo(() => {
-    if (bmi === null) return '';
-
-    if (bmi < 18.5) return 'Underweight';
-    if (bmi < 25) return 'Normal';
-    if (bmi < 30) return 'Overweight';
-    return 'Obese';
-  }, [bmi]);
-
+  // Update form fields
   const updateField = (field: keyof RegistrationForm, value: string) => {
     setForm((previous) => ({
       ...previous,
       [field]: value,
     }));
+
     setError('');
   };
 
+  // Load plans and trainers when Membership step opens
+  useEffect(() => {
+    if (currentStep !== 3) return;
+
+    let cancelled = false;
+
+    const loadOptions = async () => {
+      setLoadingOptions(true);
+      setOptionsError('');
+
+      const [plansResult, trainersResult] = await Promise.allSettled([
+        getMembershipPlansApi(),
+        getReceptionTrainersApi(),
+      ]);
+
+      if (cancelled) return;
+
+      if (plansResult.status === 'fulfilled') {
+        setPlans(plansResult.value);
+      } else {
+        setPlans([]);
+        setOptionsError(
+          'Unable to load membership plans. Please go back and retry.',
+        );
+      }
+
+      if (trainersResult.status === 'fulfilled') {
+        setTrainers(trainersResult.value);
+      } else {
+        setTrainers([]);
+      }
+
+      setLoadingOptions(false);
+    };
+
+    loadOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStep]);
+
+  // Step 1 validation
   const validatePersonalDetails = () => {
     if (!form.firstName.trim() || !form.lastName.trim()) {
       return 'Please enter first name and last name.';
@@ -101,13 +163,26 @@ export default function MemberRegistrationPage() {
       return 'Please enter a valid email address.';
     }
 
-    if (!form.dob || form.dob > today) {
+    if (!form.dob || form.dob > getLocalDate()) {
       return 'Please select a valid date of birth.';
+    }
+
+    if (!form.gender) {
+      return 'Please select gender.';
+    }
+
+    if (form.password.length < 8) {
+      return 'Password must contain at least 8 characters.';
+    }
+
+    if (form.password !== form.confirmPassword) {
+      return 'Password and confirm password do not match.';
     }
 
     return '';
   };
 
+  // Step 2 validation
   const validateFitnessDetails = () => {
     if (form.height.trim()) {
       const height = Number(form.height);
@@ -126,16 +201,38 @@ export default function MemberRegistrationPage() {
     }
 
     if (form.height.trim() && !form.weight.trim()) {
-      return 'Please enter weight to calculate BMI, or clear the height field.';
+      return 'Please enter weight or clear the height field.';
     }
 
     if (form.weight.trim() && !form.height.trim()) {
-      return 'Please enter height to calculate BMI, or clear the weight field.';
+      return 'Please enter height or clear the weight field.';
     }
 
     return '';
   };
 
+  // Step 3 validation
+  const validateMembershipDetails = () => {
+    if (loadingOptions) {
+      return 'Please wait while membership options are loading.';
+    }
+
+    if (optionsError) {
+      return optionsError;
+    }
+
+    if (!selectedPlan) {
+      return 'Please select an active membership plan.';
+    }
+
+    if (selectedPlan.ptIncluded && !selectedTrainerId) {
+      return 'This membership plan requires a personal trainer.';
+    }
+
+    return '';
+  };
+
+  // Navigation and step validation
   const handleContinue = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
@@ -149,449 +246,285 @@ export default function MemberRegistrationPage() {
       }
 
       setCurrentStep(2);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
+    } else if (currentStep === 2) {
+      const validationError = validateFitnessDetails();
+
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
+      setCurrentStep(3);
+    } else if (currentStep === 3) {
+      const validationError = validateMembershipDetails();
+
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
+      setCurrentStep(4);
     }
 
-    const validationError = validateFitnessDetails();
-
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setError(
-      'Fitness details validated. Membership selection will be added in Day 3.',
-    );
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const inputClass =
-    'mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#F4510B] focus:ring-4 focus:ring-orange-50';
+  // Final registration API flow
+  const handleRegisterMember = async () => {
+    setError('');
 
-  const labelClass = 'text-sm font-semibold text-slate-700';
+    if (!selectedPlan) {
+      setError('Please select a membership plan.');
+      return;
+    }
+
+    if (selectedPlan.ptIncluded && !selectedTrainerId) {
+      setError('Please assign a trainer for this membership plan.');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      let member = createdMember;
+
+      // Create member only once.
+      // If membership assignment previously failed, reuse this member.
+      if (!member) {
+        const memberPayload = {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          gender: form.gender as 'MALE' | 'FEMALE' | 'OTHER',
+          dob: form.dob,
+          mobile: form.mobile.trim(),
+          email: form.email.trim().toLowerCase(),
+          password: form.password,
+          address: form.address.trim() || undefined,
+          height: form.height ? Number(form.height) : undefined,
+          weight: form.weight ? Number(form.weight) : undefined,
+          fitnessGoal: form.fitnessGoal || undefined,
+          medicalConditions: form.medicalConditions
+            .split(',')
+            .map((condition) => condition.trim())
+            .filter(Boolean),
+          trainerId: selectedTrainerId || undefined,
+        };
+
+        const result = await createMemberApi(memberPayload);
+
+        member = result.member;
+        setCreatedMember(member);
+      }
+
+      // Assign membership to the created member
+      await assignMembershipApi({
+        memberId: member._id,
+        planId: selectedPlanId,
+        startDate: getLocalDate(),
+      });
+
+      setRegistrationCompleted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      const fallback = createdMember
+        ? 'Member is already created, but membership assignment failed. Please retry.'
+        : 'Unable to register member. Please check the details and try again.';
+
+      setError(getApiErrorMessage(err, fallback));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Start another registration
+  const handleRegisterAnother = () => {
+    setForm(initialForm);
+    setCurrentStep(1);
+
+    setSelectedPlanId('');
+    setSelectedTrainerId('');
+
+    setCreatedMember(null);
+    setRegistrationCompleted(false);
+
+    setError('');
+    setOptionsError('');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Registration success screen
+  if (registrationCompleted && createdMember) {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <RegistrationSuccess
+          memberName={`${createdMember.firstName} ${createdMember.lastName}`}
+          memberId={createdMember.memberId}
+          membershipStatus="PENDING"
+          onGoToMembers={() => navigate('/members')}
+          onRegisterAnother={handleRegisterAnother}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      {/* Heading */}
+      {/* Page Heading */}
       <div>
         <button
           type="button"
           onClick={() => navigate('/members')}
-          className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-[#F4510B]"
+          className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#F4510B]"
         >
           <ArrowLeft size={16} />
           Back to Members
         </button>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#14243B]">
-              Register New Member
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Complete the member registration details.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#14243B]">
+            Register New Member
+          </h1>
 
-          <span className="rounded-xl bg-orange-50 px-4 py-2.5 text-sm font-semibold text-[#F4510B]">
-            Step {currentStep} of 4
-          </span>
+          <p className="mt-1 text-sm text-slate-500">
+            Complete the registration process step by step.
+          </p>
         </div>
       </div>
 
       {/* Progress */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Registration progress
-            </p>
-            <h2 className="mt-1 font-bold text-[#14243B]">
-              {steps[currentStep - 1]}
-            </h2>
-          </div>
-
-          <span className="text-sm font-bold text-[#F4510B]">
-            {currentStep * 25}% Complete
-          </span>
-        </div>
-
-        <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-[#F4510B] transition-all"
-            style={{ width: `${currentStep * 25}%` }}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {steps.map((step, index) => {
-            const stepNumber = index + 1;
-            const isActive = stepNumber === currentStep;
-            const isCompleted = stepNumber < currentStep;
-
-            return (
-              <div key={step} className="flex items-center gap-2">
-                <div
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    isActive || isCompleted
-                      ? 'bg-[#F4510B] text-white'
-                      : 'bg-slate-100 text-slate-400'
-                  }`}
-                >
-                  {isCompleted ? <CheckCircle2 size={16} /> : stepNumber}
-                </div>
-
-                <span
-                  className={`text-xs font-semibold sm:text-sm ${
-                    isActive ? 'text-[#14243B]' : 'text-slate-400'
-                  }`}
-                >
-                  {step}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 sm:px-7 sm:py-6">
+        <RegistrationProgress
+          currentStep={currentStep}
+          steps={registrationSteps}
+        />
       </div>
 
+      {/* Registration Form */}
       <form
         onSubmit={handleContinue}
         className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
-        {/* Personal Details */}
-        {currentStep === 1 && (
-          <>
-            <div className="border-b border-slate-100 px-5 py-5 sm:px-7">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-[#F4510B]">
-                  <User size={21} />
-                </div>
-                <div>
-                  <h2 className="font-bold text-[#14243B]">
-                    Personal Information
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Enter the member's basic personal details.
-                  </p>
-                </div>
-              </div>
-            </div>
+        <div className="px-5 py-6 sm:px-7">
+          {currentStep === 1 && (
+            <PersonalDetailsStep
+              form={form}
+              updateField={updateField}
+            />
+          )}
 
-            <div className="space-y-7 px-5 py-6 sm:px-7">
-              <section>
-                <h3 className="mb-4 text-sm font-bold text-[#14243B]">
-                  Basic Details
-                </h3>
+          {currentStep === 2 && (
+            <FitnessDetailsStep
+              form={form}
+              updateField={updateField}
+            />
+          )}
 
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <div>
-                    <label className={labelClass}>First Name *</label>
-                    <input
-                      required
-                      value={form.firstName}
-                      onChange={(e) => updateField('firstName', e.target.value)}
-                      placeholder="Enter first name"
-                      className={inputClass}
-                    />
-                  </div>
+          {currentStep === 3 && (
+            <MembershipStep
+              plans={plans}
+              trainers={trainers}
+              selectedPlanId={selectedPlanId}
+              selectedTrainerId={selectedTrainerId}
+              onPlanChange={(value) => {
+                setSelectedPlanId(value);
+                setError('');
+              }}
+              onTrainerChange={(value) => {
+                setSelectedTrainerId(value);
+                setError('');
+              }}
+              loadingOptions={loadingOptions}
+              optionsError={optionsError}
+            />
+          )}
 
-                  <div>
-                    <label className={labelClass}>Last Name *</label>
-                    <input
-                      required
-                      value={form.lastName}
-                      onChange={(e) => updateField('lastName', e.target.value)}
-                      placeholder="Enter last name"
-                      className={inputClass}
-                    />
-                  </div>
+          {currentStep === 4 && (
+            <ReviewDetailsStep
+              form={form}
+              plans={plans}
+              trainers={trainers}
+              selectedPlanId={selectedPlanId}
+              selectedTrainerId={selectedTrainerId}
+              onEdit={(step) => {
+                setError('');
+                setCurrentStep(step);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          )}
+        </div>
 
-                  <div>
-                    <label className={labelClass}>Gender *</label>
-                    <select
-                      required
-                      value={form.gender}
-                      onChange={(e) => updateField('gender', e.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="MALE">Male</option>
-                      <option value="FEMALE">Female</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>Date of Birth *</label>
-                    <div className="relative">
-                      <CalendarDays
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-                      <input
-                        type="date"
-                        required
-                        max={today}
-                        value={form.dob}
-                        onChange={(e) => updateField('dob', e.target.value)}
-                        className={`${inputClass} pl-11`}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <div className="border-t border-slate-100" />
-
-              <section>
-                <h3 className="mb-4 text-sm font-bold text-[#14243B]">
-                  Contact Information
-                </h3>
-
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <div>
-                    <label className={labelClass}>Mobile Number *</label>
-                    <div className="relative">
-                      <Phone
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-                      <input
-                        type="tel"
-                        required
-                        inputMode="numeric"
-                        maxLength={10}
-                        value={form.mobile}
-                        onChange={(e) =>
-                          updateField(
-                            'mobile',
-                            e.target.value.replace(/\D/g, '').slice(0, 10),
-                          )
-                        }
-                        placeholder="10-digit mobile number"
-                        className={`${inputClass} pl-11`}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>Email Address *</label>
-                    <div className="relative">
-                      <Mail
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-                      <input
-                        type="email"
-                        required
-                        value={form.email}
-                        onChange={(e) => updateField('email', e.target.value)}
-                        placeholder="member@example.com"
-                        className={`${inputClass} pl-11`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className={labelClass}>Residential Address</label>
-                    <div className="relative">
-                      <MapPin
-                        size={17}
-                        className="absolute left-4 top-5 text-slate-400"
-                      />
-                      <textarea
-                        rows={3}
-                        value={form.address}
-                        onChange={(e) => updateField('address', e.target.value)}
-                        placeholder="Enter complete residential address"
-                        className={`${inputClass} resize-y pl-11`}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </>
-        )}
-
-        {/* Fitness Details */}
-        {currentStep === 2 && (
-          <>
-            <div className="border-b border-slate-100 px-5 py-5 sm:px-7">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-[#F4510B]">
-                  <Dumbbell size={21} />
-                </div>
-                <div>
-                  <h2 className="font-bold text-[#14243B]">
-                    Fitness Information
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Record the member's fitness profile.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-7 px-5 py-6 sm:px-7">
-              <section>
-                <h3 className="mb-4 text-sm font-bold text-[#14243B]">
-                  Body Measurements
-                  <span className="ml-2 text-xs font-normal text-slate-400">
-                    Optional
-                  </span>
-                </h3>
-
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <div>
-                    <label className={labelClass}>Height (cm)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="300"
-                      step="0.1"
-                      value={form.height}
-                      onChange={(e) => updateField('height', e.target.value)}
-                      placeholder="e.g. 175"
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>Weight (kg)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="500"
-                      step="0.1"
-                      value={form.weight}
-                      onChange={(e) => updateField('weight', e.target.value)}
-                      placeholder="e.g. 70"
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* BMI Preview */}
-              <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-2">
-                  <Activity size={18} className="text-[#F4510B]" />
-                  <h3 className="text-sm font-bold text-[#14243B]">
-                    BMI Overview
-                  </h3>
-                </div>
-
-                {bmi !== null ? (
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-medium text-slate-500">
-                        Calculated BMI
-                      </p>
-                      <p className="mt-1 text-3xl font-bold text-[#14243B]">
-                        {bmi}
-                      </p>
-                    </div>
-
-                    <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-bold text-[#F4510B]">
-                      {bmiCategory}
-                    </span>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-sm text-slate-500">
-                    Enter height and weight to calculate BMI automatically.
-                  </p>
-                )}
-
-                <p className="mt-3 text-xs text-slate-400">
-                  BMI is an indicative measurement, not a medical diagnosis.
-                </p>
-              </section>
-
-              <div className="border-t border-slate-100" />
-
-              <section>
-                <h3 className="mb-4 text-sm font-bold text-[#14243B]">
-                  Fitness Goals
-                </h3>
-
-                <label className={labelClass}>Primary Fitness Goal</label>
-                <select
-                  value={form.fitnessGoal}
-                  onChange={(e) => updateField('fitnessGoal', e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">Select fitness goal</option>
-                  <option value="WEIGHT_LOSS">Weight Loss</option>
-                  <option value="MUSCLE_GAIN">Muscle Gain</option>
-                  <option value="GENERAL_FITNESS">General Fitness</option>
-                  <option value="STRENGTH">Strength Training</option>
-                  <option value="FLEXIBILITY">Flexibility</option>
-                  <option value="ENDURANCE">Endurance</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </section>
-
-              <div className="border-t border-slate-100" />
-
-              <section>
-                <h3 className="mb-2 text-sm font-bold text-[#14243B]">
-                  Medical Conditions
-                  <span className="ml-2 text-xs font-normal text-slate-400">
-                    Optional
-                  </span>
-                </h3>
-
-                <p className="mb-3 text-xs text-slate-500">
-                  Record any conditions or health information voluntarily
-                  disclosed by the member.
-                </p>
-
-                <textarea
-                  rows={4}
-                  value={form.medicalConditions}
-                  onChange={(e) =>
-                    updateField('medicalConditions', e.target.value)
-                  }
-                  placeholder="Separate multiple conditions with commas"
-                  className={`${inputClass} resize-y`}
-                />
-              </section>
-            </div>
-          </>
-        )}
-
-        {/* Error */}
+        {/* Error Message */}
         {error && (
-          <div className="mx-5 mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mx-7">
+          <div className="mx-5 mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mx-7">
             {error}
+
+            {createdMember && (
+              <p className="mt-1 text-xs">
+                Member ID: {createdMember.memberId}. Retrying will only retry
+                membership assignment.
+              </p>
+            )}
           </div>
         )}
 
-        {/* Footer */}
+        {/* Footer Actions */}
         <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50/70 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
           <button
             type="button"
+            disabled={submitting}
             onClick={() => {
               if (currentStep === 1) {
                 navigate('/members');
-              } else {
-                setCurrentStep(1);
-                setError('');
+                return;
               }
+
+              setError('');
+              setCurrentStep((previous) => previous - 1);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
           >
             <ArrowLeft size={16} />
             {currentStep === 1 ? 'Cancel' : 'Previous'}
           </button>
 
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F4510B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#dc4508]"
-          >
-            {currentStep === 1 ? 'Continue to Fitness Details' : 'Validate Fitness Details'}
-            <ArrowRight size={17} />
-          </button>
+          {currentStep < 4 ? (
+            <button
+              type="submit"
+              disabled={loadingOptions && currentStep === 3}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F4510B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#dc4508] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {currentStep === 1
+                ? 'Continue to Fitness Details'
+                : currentStep === 2
+                  ? 'Continue to Membership'
+                  : 'Review Registration'}
+
+              <ArrowRight size={17} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleRegisterMember}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F4510B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#dc4508] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 size={17} className="animate-spin" />
+                  {createdMember
+                    ? 'Assigning Membership...'
+                    : 'Registering Member...'}
+                </>
+              ) : createdMember ? (
+                'Retry Membership Assignment'
+              ) : (
+                'Register Member'
+              )}
+            </button>
+          )}
         </div>
       </form>
     </div>

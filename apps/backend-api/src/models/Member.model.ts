@@ -34,6 +34,14 @@ export interface IMember extends Document {
   // SHA-256 hash of the member's QR token
   qrTokenHash?: string;
 
+  qrAttendanceCooldownUntil?: Date | null;
+  qrAttendanceLockId?: string | null;
+  qrAttendanceLockUntil?: Date | null;
+
+  manualAttendanceCooldownUntil?: Date | null;
+  manualAttendanceLockId?: string | null;
+  manualAttendanceLockUntil?: Date | null;
+
   status: MemberStatus;
 
   createdAt: Date;
@@ -127,6 +135,36 @@ const memberSchema = new Schema<IMember>(
       type: String,
       select: false,
     },
+
+    qrAttendanceCooldownUntil: {
+      type: Date,
+      default: null,
+    },
+
+    qrAttendanceLockId: {
+      type: String,
+      default: null,
+    },
+
+    qrAttendanceLockUntil: {
+      type: Date,
+      default: null,
+    },
+
+    manualAttendanceCooldownUntil: {
+  type: Date,
+  default: null,
+},
+
+manualAttendanceLockId: {
+  type: String,
+  default: null,
+},
+
+manualAttendanceLockUntil: {
+  type: Date,
+  default: null,
+},
 
     status: {
       type: String,

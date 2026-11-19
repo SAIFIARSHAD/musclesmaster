@@ -4,6 +4,8 @@ import {
   qrCheckInHandler,
   generateMemberQrHandler,
   manualCheckInHandler,
+  qrScanAttendanceHandler,
+  manualMemberAttendanceHandler,
   qrCheckOutHandler,
   manualCheckOutHandler,
   branchAttendanceHandler,
@@ -104,6 +106,21 @@ router.post(
   generateMemberQrHandler,
 );
 
+router.post(
+  '/qr-scan',
+  authenticate,
+  allowRoles(UserRole.BRANCH_ADMIN, UserRole.RECEPTION),
+  validateRequest,
+  qrScanAttendanceHandler,
+);
+
+// Reception: Automatic manual Check-in / Check-out using Member ID.
+router.post(
+  '/manual-scan',
+  allowRoles(UserRole.RECEPTION),
+  manualMemberAttendanceHandler,
+);
+
 // Branch Admin: Create historical manual attendance.
 router.post(
   '/manual',
@@ -142,12 +159,12 @@ router.get(
 // Branch Admin: Members currently inside the gym.
 router.get(
   '/live',
-  allowRoles(UserRole.BRANCH_ADMIN),
+  allowRoles(UserRole.BRANCH_ADMIN, UserRole.RECEPTION),
   liveAttendanceHandler,
 );
 router.get(
   '/daily',
-  allowRoles(UserRole.BRANCH_ADMIN),
+  allowRoles(UserRole.BRANCH_ADMIN, UserRole.RECEPTION),
   dailyAttendanceHandler,
 );
 

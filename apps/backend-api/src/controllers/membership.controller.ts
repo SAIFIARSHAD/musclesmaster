@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { UserRole } from '../constants/roles.enum';
 import { renewMembership } from '../services/membershipRenewal.service';
+import { getMembershipPaymentSummary } from '../services/payment.service';
 
 import {
   assignMembership,
@@ -111,6 +112,7 @@ export const assignMembershipHandler = async (
  * GET /api/memberships
  * Get memberships with filters and pagination.
  */
+
 export const getMembershipsHandler = async (
   req: AuthRequest,
   res: Response,
@@ -144,6 +146,11 @@ export const getMembershipsHandler = async (
         typeof req.query.branchId === 'string'
           ? req.query.branchId
           : undefined,
+      search:
+        typeof req.query.search === 'string'
+          ? req.query.search.trim()
+          : undefined,
+      expiringSoon: req.query.expiringSoon === 'true',
     };
 
     const result = await getMemberships(options, actor);
@@ -153,6 +160,7 @@ export const getMembershipsHandler = async (
       message: 'Memberships fetched successfully.',
       data: result.data,
       pagination: result.pagination,
+      summary: result.summary,
     });
   } catch (error: unknown) {
     console.error('Get memberships error:', error);
@@ -166,10 +174,12 @@ export const getMembershipsHandler = async (
     });
   }
 };
+
 /**
  * GET /api/memberships/:membershipId
  * Get membership details and history.
  */
+
 export const getMembershipByIdHandler = async (
   req: AuthRequest,
   res: Response,
@@ -193,12 +203,26 @@ export const getMembershipByIdHandler = async (
       });
     }
 
+    // Fetch membership details and history.
     const result = await getMembershipById(membershipId, actor);
+
+    // Fetch payment summary using the same actor permissions.
+    const paymentSummary = await getMembershipPaymentSummary(
+      membershipId,
+      {
+        userId: actor.userId,
+        role: actor.role,
+        branchId: actor.branchId,
+      },
+    );
 
     return res.status(200).json({
       success: true,
       message: 'Membership details fetched successfully.',
-      data: result,
+      data: {
+        ...result,
+        paymentSummary,
+      },
     });
   } catch (error: unknown) {
     console.error('Get membership details error:', error);
@@ -212,6 +236,7 @@ export const getMembershipByIdHandler = async (
     });
   }
 };
+
 
 export const renewMembershipHandler = async (
   req: AuthRequest,

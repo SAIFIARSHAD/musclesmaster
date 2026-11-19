@@ -34,6 +34,8 @@ export interface MembershipListOptions {
   memberId?: string;
   planId?: string;
   branchId?: string;
+  search?: string;
+  expiringSoon?: boolean;
 }
 
 const fail = (message: string, statusCode = 400): never => {
@@ -62,6 +64,9 @@ const validateOptionalObjectId = (
     return fail(`Invalid ${label}.`, 400);
   }
 };
+
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * Assign membership to a member.
@@ -255,6 +260,7 @@ const [membership] = await Membership.create(
  * Branch Admin / Reception: assigned branch only.
  * Member: own memberships only.
  */
+
 export const getMemberships = async (
   options: MembershipListOptions,
   actor: MembershipActor,
@@ -262,7 +268,7 @@ export const getMemberships = async (
   const page = Math.max(1, Number(options.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(options.limit) || 10));
 
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, any> = {};
 
   // Branch-level and member-level access control.
   if (
@@ -288,16 +294,21 @@ export const getMemberships = async (
       filter.branchId = new mongoose.Types.ObjectId(options.branchId);
     }
   } else if (actor.role === UserRole.MEMBER) {
-    const member = await Member.findOne({ userId: actor.userId }).select('_id');
+    const member = await Member.findOne({
+      userId: actor.userId,
+    }).select('_id');
 
     if (!member) {
       return {
         data: [],
-        pagination: {
-          page,
-          limit,
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        summary: {
           total: 0,
-          totalPages: 0,
+          active: 0,
+          pending: 0,
+          expired: 0,
+          frozen: 0,
+          expiringSoon: 0,
         },
       };
     }
@@ -307,7 +318,6 @@ export const getMemberships = async (
     return fail('Access denied.', 403);
   }
 
-  // Prevent member or staff from using invalid filters.
   validateOptionalObjectId(options.memberId, 'member ID');
   validateOptionalObjectId(options.planId, 'membership plan ID');
 
@@ -329,6 +339,57 @@ export const getMemberships = async (
     filter.planId = new mongoose.Types.ObjectId(options.planId);
   }
 
+  // Search by member details or membership plan name.
+  const search = options.search?.trim();
+
+  if (search) {
+    const regex = new RegExp(escapeRegex(search), 'i');
+
+    const [matchingMembers, matchingPlans] = await Promise.all([
+      Member.find({
+        $or: [
+          { memberId: regex },
+          { firstName: regex },
+          { lastName: regex },
+          { email: regex },
+          { mobile: regex },
+        ],
+      }).select('_id'),
+
+      MembershipPlan.find({
+        planName: regex,
+      }).select('_id'),
+    ]);
+
+    const matchingMemberIds = matchingMembers.map((item) => item._id);
+    const matchingPlanIds = matchingPlans.map((item) => item._id);
+
+    const searchConditions: Record<string, any>[] = [];
+
+    if (matchingMemberIds.length) {
+      searchConditions.push({
+        memberId: { $in: matchingMemberIds },
+      });
+    }
+
+    if (matchingPlanIds.length) {
+      searchConditions.push({
+        planId: { $in: matchingPlanIds },
+      });
+    }
+
+    if (!searchConditions.length) {
+      filter._id = { $in: [] };
+    } else {
+      filter.$or = searchConditions;
+    }
+  }
+
+  // Keep a copy without status/expiry filters for summary counts.
+  const summaryFilter = { ...filter };
+
+  const listFilter = { ...filter };
+
   if (options.status) {
     if (
       !Object.values(MembershipStatus).includes(
@@ -338,18 +399,77 @@ export const getMemberships = async (
       return fail('Invalid membership status.', 400);
     }
 
-    filter.status = options.status;
+    listFilter.status = options.status;
   }
 
-  const [data, total] = await Promise.all([
+  // Expiring soon = ACTIVE memberships expiring within the next 7 days.
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  const sevenDaysEnd = new Date(todayStart);
+  sevenDaysEnd.setUTCDate(sevenDaysEnd.getUTCDate() + 7);
+  sevenDaysEnd.setUTCHours(23, 59, 59, 999);
+
+  if (options.expiringSoon) {
+    listFilter.status = MembershipStatus.ACTIVE;
+    listFilter.endDate = {
+      $gte: todayStart,
+      $lte: sevenDaysEnd,
+    };
+  }
+
+  const expiringSoonFilter = {
+    ...summaryFilter,
+    status: MembershipStatus.ACTIVE,
+    endDate: {
+      $gte: todayStart,
+      $lte: sevenDaysEnd,
+    },
+  };
+
+  const [
+    data,
+    total,
+    totalCount,
+    activeCount,
+    pendingCount,
+    expiredCount,
+    frozenCount,
+    expiringSoonCount,
+  ] = await Promise.all([
     populateMembership(
-      Membership.find(filter)
+      Membership.find(listFilter)
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
     ).lean(),
 
-    Membership.countDocuments(filter),
+    Membership.countDocuments(listFilter),
+
+    Membership.countDocuments(summaryFilter),
+
+    Membership.countDocuments({
+      ...summaryFilter,
+      status: MembershipStatus.ACTIVE,
+    }),
+
+    Membership.countDocuments({
+      ...summaryFilter,
+      status: MembershipStatus.PENDING,
+    }),
+
+    Membership.countDocuments({
+      ...summaryFilter,
+      status: MembershipStatus.EXPIRED,
+    }),
+
+    Membership.countDocuments({
+      ...summaryFilter,
+      status: MembershipStatus.FROZEN,
+    }),
+
+    Membership.countDocuments(expiringSoonFilter),
   ]);
 
   return {
@@ -360,8 +480,17 @@ export const getMemberships = async (
       total,
       totalPages: Math.ceil(total / limit),
     },
+    summary: {
+      total: totalCount,
+      active: activeCount,
+      pending: pendingCount,
+      expired: expiredCount,
+      frozen: frozenCount,
+      expiringSoon: expiringSoonCount,
+    },
   };
 };
+
 
 /**
  * Get one membership's complete details.

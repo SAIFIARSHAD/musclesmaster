@@ -6,6 +6,8 @@ import {
   checkInManually,
   checkOutByQr,
   checkOutManually,
+  processQrAttendance,
+  processManualMemberAttendance,
   getBranchAttendance,
   getMemberAttendanceHistory,
   createManualAttendance,
@@ -287,6 +289,154 @@ export const qrCheckOutHandler = async (
     });
   }
 };
+
+
+/**
+ * POST /api/attendance/qr-scan
+ *
+ * Automatically check-in or check-out based on existing open session.
+ */
+export const qrScanAttendanceHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to process attendance.',
+      });
+    }
+
+    const { qrCode } = req.body;
+
+    if (typeof qrCode !== 'string' || !qrCode.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid QR code is required.',
+      });
+    }
+
+    const result = await processQrAttendance(qrCode, actor);
+
+    // Emit socket event according to the action.
+    try {
+      emitAttendanceUpdate(
+        result.action === 'CHECK_IN'
+          ? 'attendance:check-in'
+          : 'attendance:check-out',
+        result.attendance,
+      );
+    } catch (socketError) {
+      console.error(
+        'Automatic QR attendance socket emission failed:',
+        socketError,
+      );
+    }
+
+    return res.status(
+      result.action === 'CHECK_IN' ? 201 : 200,
+    ).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+
+  } catch (error: unknown) {
+    console.error('Automatic QR attendance error:', error);
+
+    // Include cooldown details in the API response (429).
+    const errorData =
+      typeof error === 'object' &&
+      error !== null &&
+      'data' in error
+        ? error.data
+        : undefined;
+
+    return res.status(getErrorStatus(error)).json({
+      success: false,
+      message: getErrorMessage(
+        error,
+        'Unable to process QR attendance.',
+      ),
+      ...(errorData ? { data: errorData } : {}),
+    });
+  }
+};
+
+
+export const manualMemberAttendanceHandler = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to process attendance.',
+      });
+    }
+
+    const { memberId } = req.body;
+
+    if (typeof memberId !== 'string' || !memberId.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Member ID is required.',
+      });
+    }
+
+    const result = await processManualMemberAttendance(
+      memberId,
+      actor,
+    );
+
+    try {
+      emitAttendanceUpdate(
+        result.action === 'CHECK_IN'
+          ? 'attendance:check-in'
+          : 'attendance:check-out',
+        result.attendance,
+      );
+    } catch (socketError) {
+      console.error(
+        'Manual attendance socket emission failed:',
+        socketError,
+      );
+    }
+
+    return res.status(
+      result.action === 'CHECK_IN' ? 201 : 200,
+    ).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  } catch (error: unknown) {
+    console.error('Manual member attendance error:', error);
+
+    const errorData =
+      typeof error === 'object' &&
+      error !== null &&
+      'data' in error
+        ? error.data
+        : undefined;
+
+    return res.status(getErrorStatus(error)).json({
+      success: false,
+      message: getErrorMessage(
+        error,
+        'Unable to process manual attendance.',
+      ),
+      ...(errorData ? { data: errorData } : {}),
+    });
+  }
+};
+
 
 /**
  * POST /api/attendance/manual-check-out
