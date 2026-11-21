@@ -5,6 +5,8 @@ import {
   getPaymentHistoryHandler,
   getMembershipPaymentSummaryHandler,
   getPaymentAuditHistoryHandler,
+  getPaymentDashboardSummaryHandler,
+  getOutstandingDuesHandler,
 } from '../controllers/payment.controller';
 
 import { authenticate } from '../middlewares/auth.middleware';
@@ -57,6 +59,27 @@ router.get(
     UserRole.RECEPTION,
   ),
   getPaymentAuditHistoryHandler,
+);
+
+// Payment dashboard summary
+router.get(
+  '/dashboard-summary',
+  allowRoles(
+    UserRole.SUPER_ADMIN,
+    UserRole.BRANCH_ADMIN,
+    UserRole.RECEPTION,
+  ),
+  getPaymentDashboardSummaryHandler,
+);
+
+router.get(
+  '/outstanding-dues',
+  allowRoles(
+    UserRole.SUPER_ADMIN,
+    UserRole.BRANCH_ADMIN,
+    UserRole.RECEPTION,
+  ),
+  getOutstandingDuesHandler,
 );
 
 export default router;

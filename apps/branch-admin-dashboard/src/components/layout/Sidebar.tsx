@@ -77,6 +77,11 @@ const navigation: NavigationGroup[] = [
         path: '/payments',
         icon: Receipt,
       },
+      {
+      title: 'Collect Payment',
+      path: '/payments/collect',
+      icon: CreditCard,
+    },
     ],
   },
   {
@@ -179,7 +184,8 @@ export default function Sidebar({
                     <NavLink
                       key={item.path}
                       to={item.path}
-                      end={item.path === '/dashboard'}
+                      end={item.path === '/dashboard'||
+                      item.path === '/payments'|| item.path === '/payments/collect'}
                       onClick={onClose}
                       title={collapsed ? item.title : undefined}
                       className={({ isActive }) =>

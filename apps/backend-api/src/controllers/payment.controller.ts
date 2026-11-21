@@ -11,6 +11,10 @@ import {
   PaymentHistoryInput,
   getPaymentAuditHistory,
   PaymentAuditHistoryInput,
+  getPaymentDashboardSummary,
+  PaymentDashboardInput,
+  getOutstandingDues,
+  OutstandingDuesInput,
 } from '../services/payment.service';
 
 const getErrorStatus = (
@@ -238,6 +242,102 @@ export const getPaymentAuditHistoryHandler = async (
       message: getErrorMessage(
         error,
         'Unable to fetch payment audit history.',
+      ),
+    });
+  }
+};
+
+
+export const getPaymentDashboardSummaryHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+      return;
+    }
+
+    const input: PaymentDashboardInput = {
+      fromDate: req.query.fromDate as string | undefined,
+      toDate: req.query.toDate as string | undefined,
+      branchId: req.query.branchId as string | undefined,
+    };
+
+    const result = await getPaymentDashboardSummary(input, actor);
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment dashboard summary fetched successfully.',
+      data: result,
+    });
+  } catch (error: unknown) {
+    console.error('Payment dashboard summary error:', error);
+
+    res.status(getErrorStatus(error)).json({
+      success: false,
+      message: getErrorMessage(
+        error,
+        'Unable to fetch payment dashboard summary.',
+      ),
+    });
+  }
+};
+
+/**
+ * GET /api/payments/outstanding-dues
+ *
+ * Fetch paginated outstanding membership dues.
+ *
+ * Allowed roles:
+ * SUPER_ADMIN, BRANCH_ADMIN, RECEPTION
+ */
+export const getOutstandingDuesHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const actor = getActor(req);
+
+    if (!actor) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+      return;
+    }
+
+    const input: OutstandingDuesInput = {
+      page: req.query.page
+        ? Number(req.query.page)
+        : undefined,
+      limit: req.query.limit
+        ? Number(req.query.limit)
+        : undefined,
+      branchId: req.query.branchId as string | undefined,
+    };
+
+    const result = await getOutstandingDues(input, actor);
+
+    res.status(200).json({
+      success: true,
+      message: 'Outstanding dues fetched successfully.',
+      data: result.dues,
+      pagination: result.pagination,
+    });
+  } catch (error: unknown) {
+    console.error('Outstanding dues error:', error);
+
+    res.status(getErrorStatus(error)).json({
+      success: false,
+      message: getErrorMessage(
+        error,
+        'Unable to fetch outstanding dues.',
       ),
     });
   }

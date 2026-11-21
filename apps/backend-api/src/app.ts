@@ -52,7 +52,6 @@ app.use('/api/membership-plans', membershipPlanRoutes);
 app.use('/api/memberships', membershipRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use('/api/payments', paymentRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/refunds', refundRoutes);
 app.use('/api/reception', receptionRoutes);

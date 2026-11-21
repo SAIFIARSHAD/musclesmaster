@@ -14,6 +14,8 @@ import MembersPage from './pages/MembersPage';
 import MemberDetailsPage from './pages/MemberDetailsPage';
 import AttendancePage from './pages/AttendancePage';
 import MembershipsPage from './pages/MembershipsPage';
+import { PaymentDashboard } from '@repo/payment-module';
+import { PaymentCollectionForm } from '@repo/payment-module';
 
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
@@ -69,13 +71,14 @@ function App() {
 
               <Route
                 path="/payments"
-                element={
-                  <ComingSoon
-                    title="Payments"
-                    description="Payment collection will be connected through the common payment module."
-                  />
-                }
+                element={<PaymentDashboard />}
               />
+              <Route
+                path="/payments/collect"
+                element={<PaymentCollectionForm />}
+              />
+
+
             </Route>
           </Route>
 

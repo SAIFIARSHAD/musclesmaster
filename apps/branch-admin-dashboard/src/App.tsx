@@ -13,6 +13,8 @@ import MembershipsPage from './pages/MembershipsPage';
 import FreezeRequestsPage from './pages/FreezeRequestsPage';
 import AttendancePage from './pages/AttendancePage';
 import StaffManagementPage from './pages/StaffManagementPage';
+import { PaymentDashboard } from '@repo/payment-module';
+import { PaymentCollectionForm } from '@repo/payment-module';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 
@@ -105,7 +107,12 @@ const App = () => (
 
           <Route
             path="/payments"
-            element={<ComingSoonPage title="Payments" />}
+            element={<PaymentDashboard />}
+          />
+
+          <Route
+            path="/payments/collect"
+            element={<PaymentCollectionForm />}
           />
 
           <Route

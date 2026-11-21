@@ -6,8 +6,6 @@ import {
   UserRound,
   Phone,
   Mail,
-  MapPin,
-  CalendarDays,
   Dumbbell,
   Activity,
   Building2,

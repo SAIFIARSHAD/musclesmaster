@@ -42,6 +42,7 @@ const navigation = [
     label: 'FINANCE',
     items: [
       { title: 'Payments', path: '/payments', icon: Wallet },
+      { title: 'Collect Payment', path: '/payments/collect', icon: CreditCard },
     ],
   },
 ];
@@ -106,7 +107,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     <NavLink
                       key={item.path}
                       to={item.path}
-                      end={item.path === '/dashboard' || item.path === '/members'}
+                      end={item.path === '/dashboard' || item.path === '/members' || item.path === '/payments' || item.path === '/payments/collect'}
                       onClick={onClose}
                       className={({ isActive }) =>
                         `group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition-all duration-200 ${

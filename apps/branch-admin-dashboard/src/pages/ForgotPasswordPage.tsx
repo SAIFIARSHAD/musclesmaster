@@ -11,7 +11,6 @@ import {
   EyeOff,
   Dumbbell,
   ShieldCheck,
-  UsersRound,
   Activity,
   Loader2,
   CheckCircle2,

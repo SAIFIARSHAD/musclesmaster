@@ -94,8 +94,7 @@ export default function MemberRegistrationPage() {
   const selectedPlan =
     plans.find((plan) => plan._id === selectedPlanId) ?? null;
 
-  const selectedTrainer =
-    trainers.find((trainer) => trainer._id === selectedTrainerId) ?? null;
+
 
   // Update form fields
   const updateField = (field: keyof RegistrationForm, value: string) => {
@@ -393,7 +392,7 @@ export default function MemberRegistrationPage() {
       </div>
 
       {/* Progress */}
-      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 sm:px-7 sm:py-6">
+      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 sm:px-7 sm:py-6">  
         <RegistrationProgress
           currentStep={currentStep}
           steps={registrationSteps}

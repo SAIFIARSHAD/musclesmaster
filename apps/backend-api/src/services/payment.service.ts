@@ -839,3 +839,635 @@ export const getPaymentAuditHistory = async (
     },
   };
 };
+
+
+export interface PaymentDashboardInput {
+  fromDate?: string;
+  toDate?: string;
+  branchId?: string;
+}
+
+const getISTDateString = (date = new Date()): string => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+const isValidDateString = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+};
+
+const getISTDateBoundary = (
+  date: string,
+  endOfDay = false,
+): Date => {
+  return new Date(
+    `${date}T${endOfDay ? '23:59:59.999' : '00:00:00'}+05:30`,
+  );
+};
+
+export const getPaymentDashboardSummary = async (
+  input: PaymentDashboardInput,
+  actor: PaymentActor,
+) => {
+  validateActor(actor);
+
+  const today = getISTDateString();
+  const currentMonth = today.slice(0, 7);
+
+  // Default date range: current month.
+  const fromDate = input.fromDate || `${currentMonth}-01`;
+  const toDate = input.toDate || today;
+
+  if (
+    !isValidDateString(fromDate) ||
+    !isValidDateString(toDate)
+  ) {
+    return fail('Invalid dashboard date range.');
+  }
+
+  const rangeStart = getISTDateBoundary(fromDate);
+  const rangeEnd = getISTDateBoundary(toDate, true);
+
+  if (rangeStart > rangeEnd) {
+    return fail('fromDate cannot be later than toDate.');
+  }
+
+  const todayStart = getISTDateBoundary(today);
+  const todayEnd = getISTDateBoundary(today, true);
+
+  // Apply branch-level access control.
+  const branchFilter: Record<string, unknown> = {};
+
+  if (actor.role !== UserRole.SUPER_ADMIN) {
+    if (
+      input.branchId &&
+      input.branchId !== actor.branchId
+    ) {
+      return fail(
+        'You can access your assigned branch only.',
+        403,
+      );
+    }
+
+    branchFilter.branchId = new mongoose.Types.ObjectId(
+      actor.branchId,
+    );
+  } else if (input.branchId) {
+    if (!mongoose.isValidObjectId(input.branchId)) {
+      return fail('Invalid branch ID.');
+    }
+
+    branchFilter.branchId = new mongoose.Types.ObjectId(
+      input.branchId,
+    );
+  }
+
+  const successfulStatuses = [
+    PaymentStatus.SUCCESS,
+    PaymentStatus.PARTIALLY_REFUNDED,
+    PaymentStatus.REFUNDED,
+  ];
+
+  // Collection metrics use payment paidAt.
+  const paymentFilter = {
+    ...branchFilter,
+    status: { $in: successfulStatuses },
+    paidAt: {
+      $gte: rangeStart,
+      $lte: rangeEnd,
+    },
+  };
+
+  // Refund metrics use actual processing date.
+  const refundFilter = {
+    ...branchFilter,
+    status: RefundStatus.PROCESSED,
+    processedAt: {
+      $gte: rangeStart,
+      $lte: rangeEnd,
+    },
+  };
+
+  // Today's collection always uses India local date.
+  const todayPaymentFilter = {
+    ...branchFilter,
+    status: { $in: successfulStatuses },
+    paidAt: {
+      $gte: todayStart,
+      $lte: todayEnd,
+    },
+  };
+
+  const [
+    collectionResult,
+    todayResult,
+    refundResult,
+    refundRequestCounts,
+    paymentMethods,
+    recentTransactions,
+    duesResult,
+  ] = await Promise.all([
+    // Gross collection.
+    Payment.aggregate([
+      { $match: paymentFilter },
+      {
+        $group: {
+          _id: null,
+          totalCollected: { $sum: '$amount' },
+          totalTransactions: { $sum: 1 },
+        },
+      },
+    ]),
+
+    // Today's collection.
+    Payment.aggregate([
+      { $match: todayPaymentFilter },
+      {
+        $group: {
+          _id: null,
+          todayCollection: { $sum: '$amount' },
+          todayTransactions: { $sum: 1 },
+        },
+      },
+    ]),
+
+    // Successfully processed refunds.
+    Refund.aggregate([
+      { $match: refundFilter },
+      {
+        $group: {
+          _id: null,
+          totalRefunded: { $sum: '$refundAmount' },
+        },
+      },
+    ]),
+
+    // Current open refund requests.
+    Refund.aggregate([
+      {
+        $match: {
+          ...branchFilter,
+          status: {
+            $in: [
+              RefundStatus.PENDING,
+              RefundStatus.APPROVED,
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          amount: { $sum: '$refundAmount' },
+        },
+      },
+    ]),
+
+    // Payment method breakdown.
+    Payment.aggregate([
+      { $match: paymentFilter },
+      {
+        $group: {
+          _id: '$paymentMethod',
+          amount: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { amount: -1 } },
+    ]),
+
+    // Latest 10 transactions in selected date range.
+    Payment.find(paymentFilter)
+      .sort({ paidAt: -1, createdAt: -1 })
+      .limit(10)
+      .lean(),
+
+    // Outstanding dues of pending memberships.
+    Membership.aggregate([
+      {
+        $match: {
+          ...branchFilter,
+          status: MembershipStatus.PENDING,
+        },
+      },
+      {
+        $lookup: {
+          from: 'payments',
+          let: { membershipId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$membershipId', '$$membershipId'],
+                },
+                status: { $in: successfulStatuses },
+              },
+            },
+            {
+              $lookup: {
+                from: 'refunds',
+                let: { paymentId: '$_id' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $eq: ['$paymentId', '$$paymentId'],
+                      },
+                      status: RefundStatus.PROCESSED,
+                    },
+                  },
+                  {
+                    $group: {
+                      _id: null,
+                      totalRefunded: {
+                        $sum: '$refundAmount',
+                      },
+                    },
+                  },
+                ],
+                as: 'refundSummary',
+              },
+            },
+            {
+              $project: {
+                netCollected: {
+                  $subtract: [
+                    '$amount',
+                    {
+                      $ifNull: [
+                        {
+                          $arrayElemAt: [
+                            '$refundSummary.totalRefunded',
+                            0,
+                          ],
+                        },
+                        0,
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'membershipPayments',
+        },
+      },
+      {
+        $project: {
+          outstandingDue: {
+            $max: [
+              0,
+              {
+                $subtract: [
+                  '$agreedAmount',
+                  {
+                    $sum: '$membershipPayments.netCollected',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
+        $match: {
+          outstandingDue: { $gt: 0 },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalPendingDue: { $sum: '$outstandingDue' },
+          pendingMemberships: { $sum: 1 },
+        },
+      },
+    ]),
+  ]);
+
+  const totalCollected =
+    collectionResult[0]?.totalCollected ?? 0;
+
+  const totalRefunded =
+    refundResult[0]?.totalRefunded ?? 0;
+
+  const pendingRequests =
+    refundRequestCounts.find(
+      (item) => item._id === RefundStatus.PENDING,
+    );
+
+  const approvedRequests =
+    refundRequestCounts.find(
+      (item) => item._id === RefundStatus.APPROVED,
+    );
+
+  return {
+    dateRange: {
+      fromDate,
+      toDate,
+      timeZone: 'Asia/Kolkata',
+    },
+
+    collection: {
+      totalCollected,
+      totalRefunded,
+      netCollection: totalCollected - totalRefunded,
+      totalTransactions:
+        collectionResult[0]?.totalTransactions ?? 0,
+      todayCollection:
+        todayResult[0]?.todayCollection ?? 0,
+      todayTransactions:
+        todayResult[0]?.todayTransactions ?? 0,
+    },
+
+    dues: {
+      totalPendingDue:
+        duesResult[0]?.totalPendingDue ?? 0,
+      pendingMemberships:
+        duesResult[0]?.pendingMemberships ?? 0,
+    },
+
+    refunds: {
+      pendingRequests: pendingRequests?.count ?? 0,
+      pendingAmount: pendingRequests?.amount ?? 0,
+      approvedRequests: approvedRequests?.count ?? 0,
+      approvedAmount: approvedRequests?.amount ?? 0,
+      processedAmount: totalRefunded,
+    },
+
+    paymentMethods: paymentMethods.map((item) => ({
+      method: item._id,
+      amount: item.amount,
+      count: item.count,
+    })),
+
+    recentTransactions,
+  };
+};
+
+
+export interface OutstandingDuesInput {
+  page?: number;
+  limit?: number;
+  branchId?: string;
+}
+
+export const getOutstandingDues = async (
+  input: OutstandingDuesInput,
+  actor: PaymentActor,
+) => {
+  validateActor(actor);
+
+  const page = Number(input.page ?? 1);
+  const limit = Number(input.limit ?? 20);
+
+  if (!Number.isInteger(page) || page < 1) {
+    return fail('Page must be a positive integer.');
+  }
+
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    return fail('Limit must be between 1 and 100.');
+  }
+
+  // Apply branch-level access control.
+  const branchFilter: Record<string, unknown> = {
+    status: MembershipStatus.PENDING,
+  };
+
+  if (actor.role !== UserRole.SUPER_ADMIN) {
+    if (
+      input.branchId &&
+      input.branchId !== actor.branchId
+    ) {
+      return fail(
+        'You can access your assigned branch only.',
+        403,
+      );
+    }
+
+    branchFilter.branchId = new mongoose.Types.ObjectId(
+      actor.branchId,
+    );
+  } else if (input.branchId) {
+    if (!mongoose.isValidObjectId(input.branchId)) {
+      return fail('Invalid branch ID.');
+    }
+
+    branchFilter.branchId = new mongoose.Types.ObjectId(
+      input.branchId,
+    );
+  }
+
+  const successfulStatuses = [
+    PaymentStatus.SUCCESS,
+    PaymentStatus.PARTIALLY_REFUNDED,
+    PaymentStatus.REFUNDED,
+  ];
+
+  const skip = (page - 1) * limit;
+
+  const result = await Membership.aggregate([
+    {
+      $match: branchFilter,
+    },
+
+    // Fetch successful payments for each membership.
+    {
+      $lookup: {
+        from: 'payments',
+        let: { membershipId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$membershipId', '$$membershipId'],
+              },
+              status: { $in: successfulStatuses },
+            },
+          },
+          {
+            $lookup: {
+              from: 'refunds',
+              let: { paymentId: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$paymentId', '$$paymentId'],
+                    },
+                    status: RefundStatus.PROCESSED,
+                  },
+                },
+                {
+                  $group: {
+                    _id: null,
+                    totalRefunded: {
+                      $sum: '$refundAmount',
+                    },
+                  },
+                },
+              ],
+              as: 'refundSummary',
+            },
+          },
+          {
+            $addFields: {
+              refundedAmount: {
+                $ifNull: [
+                  {
+                    $arrayElemAt: [
+                      '$refundSummary.totalRefunded',
+                      0,
+                    ],
+                  },
+                  0,
+                ],
+              },
+            },
+          },
+          {
+            $project: {
+              amount: 1,
+              refundedAmount: 1,
+              netCollected: {
+                $subtract: ['$amount', '$refundedAmount'],
+              },
+            },
+          },
+        ],
+        as: 'membershipPayments',
+      },
+    },
+
+    // Calculate membership-wise collection totals.
+    {
+      $addFields: {
+        totalCollected: {
+          $sum: '$membershipPayments.amount',
+        },
+        totalRefunded: {
+          $sum: '$membershipPayments.refundedAmount',
+        },
+        netCollected: {
+          $sum: '$membershipPayments.netCollected',
+        },
+      },
+    },
+
+    // Calculate remaining due.
+    {
+      $addFields: {
+        remainingDue: {
+          $max: [
+            0,
+            {
+              $subtract: ['$agreedAmount', '$netCollected'],
+            },
+          ],
+        },
+      },
+    },
+
+    // Only memberships with outstanding dues.
+    {
+      $match: {
+        remainingDue: { $gt: 0 },
+      },
+    },
+
+    // Fetch member details.
+    {
+      $lookup: {
+        from: 'members',
+        localField: 'memberId',
+        foreignField: '_id',
+        as: 'member',
+      },
+    },
+    {
+      $unwind: '$member',
+    },
+
+    {
+      $project: {
+        _id: 1,
+        membershipId: '$_id',
+        branchId: 1,
+        membershipStatus: '$status',
+        agreedAmount: 1,
+        totalCollected: 1,
+        totalRefunded: 1,
+        netCollected: 1,
+        remainingDue: 1,
+        createdAt: 1,
+
+        member: {
+          _id: '$member._id',
+          memberId: '$member.memberId',
+          firstName: '$member.firstName',
+          lastName: '$member.lastName',
+          mobile: '$member.mobile',
+          status: '$member.status',
+          startDate: '$member.startDate',
+          endDate: '$member.endDate',
+        },
+      },
+    },
+
+    {
+      $sort: {
+        remainingDue: -1,
+        createdAt: -1,
+      },
+    },
+
+    // Return paginated records and total count.
+    {
+      $facet: {
+        records: [
+          { $skip: skip },
+          { $limit: limit },
+        ],
+        metadata: [
+          { $count: 'totalRecords' },
+        ],
+      },
+    },
+  ]);
+
+  const records = result[0]?.records ?? [];
+  const totalRecords = result[0]?.metadata[0]?.totalRecords ?? 0;
+
+  return {
+    dues: records,
+    pagination: {
+      currentPage: page,
+      pageSize: limit,
+      totalRecords,
+      totalPages: Math.ceil(totalRecords / limit),
+      hasNextPage: page * limit < totalRecords,
+      hasPreviousPage: page > 1,
+    },
+  };
+};
