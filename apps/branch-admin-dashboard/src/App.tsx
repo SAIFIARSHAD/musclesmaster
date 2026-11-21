@@ -15,6 +15,7 @@ import AttendancePage from './pages/AttendancePage';
 import StaffManagementPage from './pages/StaffManagementPage';
 import { PaymentDashboard } from '@repo/payment-module';
 import { PaymentCollectionForm } from '@repo/payment-module';
+import { PaymentHistory } from '@repo/payment-module';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 
@@ -113,6 +114,11 @@ const App = () => (
           <Route
             path="/payments/collect"
             element={<PaymentCollectionForm />}
+          />
+
+          <Route
+            path="/payments/history"
+            element={<PaymentHistory />}
           />
 
           <Route

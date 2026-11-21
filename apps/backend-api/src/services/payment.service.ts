@@ -648,8 +648,42 @@ export const getPaymentHistory = async (
     Payment.countDocuments(filter),
   ]);
 
+
+  // Fetch invoices for the current page's payments.
+  const paymentIds = payments.map((payment) => payment._id);
+
+  const invoices = paymentIds.length
+    ? await Invoice.find({
+        paymentId: { $in: paymentIds },
+      })
+        .select('_id paymentId invoiceNumber status generatedDate')
+        .lean()
+    : [];
+
+  // Map invoices using paymentId, not invoiceId.
+  const invoiceByPaymentId = new Map(
+    invoices.map((invoice) => [
+      String(invoice.paymentId),
+      invoice,
+    ]),
+  );
+
+  // Attach invoice information to each payment record.
+  const paymentsWithInvoice = payments.map((payment) => {
+    const invoice = invoiceByPaymentId.get(
+      String(payment._id),
+    );
+
+    return {
+      ...payment,
+      invoiceId: invoice ? String(invoice._id) : null,
+      invoiceNumber: invoice?.invoiceNumber ?? null,
+      invoiceStatus: invoice?.status ?? null,
+    };
+  });
+
   return {
-    payments,
+    payments: paymentsWithInvoice,
     pagination: {
       currentPage: page,
       pageSize: limit,

@@ -82,6 +82,11 @@ const navigation: NavigationGroup[] = [
       path: '/payments/collect',
       icon: CreditCard,
     },
+    {
+      title: 'Payment History',
+      path: '/payments/history',
+      icon: Receipt,
+    },
     ],
   },
   {

@@ -33,18 +33,21 @@ const navigation = [
     ],
   },
   {
+    label: 'FINANCE',
+    items: [
+      { title: 'Payments', path: '/payments', icon: Wallet },
+      { title: 'Collect Payment', path: '/payments/collect', icon: CreditCard },
+      { title: 'Payment History', path: '/payments/history', icon: Wallet, },
+    ],
+  },
+
+  {
     label: 'CUSTOMER MANAGEMENT',
     items: [
       { title: 'Leads & Inquiries', path: '/leads', icon: UserSearch },
     ],
   },
-  {
-    label: 'FINANCE',
-    items: [
-      { title: 'Payments', path: '/payments', icon: Wallet },
-      { title: 'Collect Payment', path: '/payments/collect', icon: CreditCard },
-    ],
-  },
+
 ];
 
 export default function Sidebar({ open, onClose }: SidebarProps) {

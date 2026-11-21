@@ -35,9 +35,11 @@ export interface MemberSearchFilters {
   limit?: number;
 }
 
+
 export interface PendingMembershipFilters {
-  memberId: string;
+  memberId?: string;
   status?: 'PENDING';
   page?: number;
   limit?: number;
 }
+

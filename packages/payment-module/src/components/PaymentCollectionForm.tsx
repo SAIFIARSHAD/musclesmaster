@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePaymentModule } from '../hooks/usePaymentModule';
 import type {
   MemberLookupItem,
@@ -82,10 +82,46 @@ export const PaymentCollectionForm = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const [pendingMemberships, setPendingMemberships] =
+  useState<PendingMembershipLookupItem[]>([]);
+
+const [loadingPendingMembers, setLoadingPendingMembers] =
+  useState(false);
+
   // Invoice states
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [invoiceError, setInvoiceError] = useState('');
+
+
+useEffect(() => {
+  const loadPendingMemberships = async () => {
+    try {
+      setLoadingPendingMembers(true);
+
+      const response = await collectionLookup.getPendingMemberships({
+        status: 'PENDING',
+        page: 1,
+        limit: 20,
+      });
+
+      if (!response.success) {
+        throw new Error(
+          response.message || 'Unable to load pending memberships.',
+        );
+      }
+
+      setPendingMemberships(response.data || []);
+    } catch (err) {
+      console.error('Pending memberships load error:', err);
+    } finally {
+      setLoadingPendingMembers(false);
+    }
+  };
+
+  void loadPendingMemberships();
+}, [collectionLookup]);
+
 
   const handleSearch = async () => {
     if (!search.trim()) {
@@ -507,6 +543,72 @@ export const PaymentCollectionForm = () => {
           </div>
         )}
       </section>
+
+
+<section style={cardStyle}>
+  <h3 style={{ margin: '0 0 16px', fontSize: '16px' }}>
+    Pending Payments
+  </h3>
+
+  {loadingPendingMembers ? (
+    <p style={mutedStyle}>Loading pending members...</p>
+  ) : pendingMemberships.length === 0 ? (
+    <p style={mutedStyle}>
+      No pending memberships found.
+    </p>
+  ) : (
+    <div style={{ display: 'grid', gap: '12px' }}>
+      {pendingMemberships.map((membership) => {
+        const member = membership.memberId;
+
+        return (
+          <div
+            key={membership._id}
+            style={{
+              border: '1px solid #E2E7EF',
+              borderRadius: '8px',
+              padding: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '14px',
+            }}
+          >
+            <div>
+              <strong>
+                {member.firstName} {member.lastName}
+              </strong>
+
+              <div style={{ ...mutedStyle, marginTop: '5px' }}>
+                ID: {member.memberId} · Mobile: {member.mobile}
+              </div>
+
+              <div style={{ ...mutedStyle, marginTop: '5px' }}>
+                Plan: {membership.planId?.planName || 'Membership Plan'}
+                {' · '}
+                Branch: {membership.branchId?.name || '—'}
+              </div>
+
+              <div style={{ marginTop: '8px', fontWeight: 600 }}>
+                Agreed Amount: {currency(membership.agreedAmount)}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleSelectMember(member)}
+              style={primaryButtonStyle}
+            >
+              Select Member
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</section>
+
 
       {selectedMember && (
         <section style={cardStyle}>
