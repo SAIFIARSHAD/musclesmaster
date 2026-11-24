@@ -1,9 +1,7 @@
-
 import type { RegistrationForm } from './RegistrationFormTypes';
 import type { MembershipPlan } from '../../../api/membershipPlans.api';
 import type { Trainer } from '../../../api/trainers.api';
 import { Pencil } from 'lucide-react';
-
 interface ReviewDetailsStepProps {
   form: RegistrationForm;
   plans: MembershipPlan[];

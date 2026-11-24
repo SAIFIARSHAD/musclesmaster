@@ -1,13 +1,10 @@
-
 export type RefundStatus =
   | 'PENDING'
   | 'APPROVED'
   | 'REJECTED'
   | 'PROCESSED'
   | 'FAILED';
-
 export type RefundReviewDecision = 'APPROVE' | 'REJECT';
-
 export interface Refund {
   _id: string;
   refundReference: string;
@@ -30,29 +27,24 @@ export interface Refund {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface CreateRefundRequestInput {
   paymentId: string;
   refundAmount: number;
   reason: string;
   idempotencyKey?: string;
 }
-
 export interface CreateRefundRequestResult {
   refund: Refund;
   remainingRefundable: number;
   alreadyProcessed: boolean;
 }
-
 export interface ReviewRefundRequestInput {
   decision: RefundReviewDecision;
   approvalNote?: string;
 }
-
 export interface ProcessRefundInput {
   refundTransactionId: string;
 }
-
 export interface ProcessRefundResult {
   refund: Refund;
   alreadyProcessed: boolean;

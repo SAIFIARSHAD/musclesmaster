@@ -1,6 +1,4 @@
-
 import type { UserRole } from './auth.types';
-
 export interface StaffUser {
   _id: string;
   name: string;
@@ -12,7 +10,6 @@ export interface StaffUser {
   createdAt?: string;
   updatedAt?: string;
 }
-
 export interface CreateStaffRequest {
   name: string;
   email: string;

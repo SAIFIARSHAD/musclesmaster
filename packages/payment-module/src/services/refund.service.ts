@@ -1,7 +1,5 @@
 import type { AxiosInstance } from 'axios';
-
 import type { ApiResponse } from '../types/api.types';
-
 import type {
   CreateRefundRequestInput,
   ProcessRefundInput,

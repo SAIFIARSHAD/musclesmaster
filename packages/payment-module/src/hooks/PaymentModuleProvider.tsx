@@ -1,12 +1,9 @@
-
 import {
   createContext,
   useMemo,
   type ReactNode,
 } from 'react';
-
 import type { AxiosInstance } from 'axios';
-
 import { createPaymentService } from '../services/payment.service';
 import { createRefundService } from '../services/refund.service';
 import { createInvoiceService } from '../services/invoice.service';

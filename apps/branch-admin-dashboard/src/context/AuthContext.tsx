@@ -5,9 +5,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-
 import type { ReactNode } from 'react';
-
 import { refreshAccessToken } from '../api/axiosInstance';
 import { loginApi, logoutApi } from '../api/auth.api';
 import { tokenManager } from '../api/tokenManager';

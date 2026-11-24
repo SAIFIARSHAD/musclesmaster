@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -549,7 +548,6 @@ export default function MembershipsPage() {
     </div>
   );
 }
-
 interface SummaryCardProps {
   label: string;
   value: number;
@@ -586,8 +584,6 @@ function SummaryCard({
     </div>
   );
 }
-
-
 interface AssignMembershipModalProps {
   open: boolean;
   onClose: () => void;

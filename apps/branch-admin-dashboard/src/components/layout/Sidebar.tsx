@@ -11,7 +11,8 @@ import {
   X,
   UserRoundCog,
   Receipt,
-   Snowflake,
+  Snowflake,
+  Tags,
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -55,6 +56,11 @@ const navigation: NavigationGroup[] = [
         title: 'Memberships',
         path: '/memberships',
         icon: CreditCard,
+      },
+      {
+        title: 'Membership Plans',
+        path: '/membership-plans',
+        icon: Tags,
       },
       {
       title: 'Freeze Requests',

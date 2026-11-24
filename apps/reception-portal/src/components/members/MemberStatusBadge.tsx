@@ -1,4 +1,3 @@
-
 interface MemberStatusBadgeProps {
   status: string;
 }

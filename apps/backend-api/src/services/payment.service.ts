@@ -22,7 +22,7 @@ import {
   MembershipHistory,
   MembershipHistoryAction,
 } from '../models/MembershipHistory.model';
-import { Member } from '../models/Member.model';
+import { Member, MemberStatus} from '../models/Member.model';
 import { Branch } from '../models/Branch.model';
 import { UserRole } from '../constants/roles.enum';
 import { generateInvoiceNumber } from '../utils/invoiceNumberGenerator';
@@ -438,6 +438,30 @@ await paymentAudit.save({ session });
             409,
           );
         }
+// Activate the member after successful membership activation.
+const activatedMember = await Member.findOneAndUpdate(
+  {
+    _id: member._id,
+    branchId: branch._id,
+  },
+  {
+    $set: {
+      status: MemberStatus.ACTIVE,
+    },
+  },
+  {
+    new: true,
+    session,
+  },
+);
+
+if (!activatedMember) {
+  return fail(
+    'Member activation failed. Please retry the payment.',
+    409,
+  );
+}
+
 
         await MembershipHistory.create(
           [
@@ -694,7 +718,6 @@ export const getPaymentHistory = async (
     },
   };
 };
-
 
 export const getMembershipPaymentSummary = async (
   membershipId: string,

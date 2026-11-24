@@ -13,7 +13,6 @@ export default function DashboardLayout() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-
       <div className="min-h-screen transition-all duration-300 lg:pl-[264px]">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 

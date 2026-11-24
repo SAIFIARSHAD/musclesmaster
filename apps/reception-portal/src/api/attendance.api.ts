@@ -1,10 +1,7 @@
-
 import { http } from './axiosInstance';
-
 // ==============================
 // QR ATTENDANCE TYPES
 // ==============================
-
 export interface QRScanAttendanceResult {
   action: 'CHECK_IN' | 'CHECK_OUT';
   member: {

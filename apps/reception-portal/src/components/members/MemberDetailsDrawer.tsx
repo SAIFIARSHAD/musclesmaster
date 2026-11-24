@@ -23,7 +23,6 @@ import {
 } from '../../api/members.api';
 
 import MemberStatusBadge from './MemberStatusBadge';
-
 interface MemberDetailsDrawerProps {
   memberId: string | null;
   onClose: () => void;

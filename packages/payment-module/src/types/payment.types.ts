@@ -1,25 +1,20 @@
-
 import type { Invoice } from './invoice.types';
-
 export type PaymentType =
   | 'MEMBERSHIP'
   | 'PERSONAL_TRAINING'
   | 'PRODUCT'
   | 'SERVICE';
-
 export type PaymentMethod =
   | 'CASH'
   | 'UPI'
   | 'CARD'
   | 'NET_BANKING';
-
 export type PaymentStatus =
   | 'PENDING'
   | 'SUCCESS'
   | 'FAILED'
   | 'PARTIALLY_REFUNDED'
   | 'REFUNDED';
-
 export interface Payment {
   _id: string;
   paymentReference: string;
@@ -38,7 +33,6 @@ export interface Payment {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface CreateMembershipPaymentInput {
   membershipId: string;
   amount: number;
@@ -47,7 +41,6 @@ export interface CreateMembershipPaymentInput {
   notes?: string;
   idempotencyKey?: string;
 }
-
 export interface PaymentHistoryFilters {
   page?: number;
   limit?: number;
@@ -59,7 +52,6 @@ export interface PaymentHistoryFilters {
   fromDate?: string;
   toDate?: string;
 }
-
 export interface PaymentPagination {
   currentPage: number;
   pageSize: number;
@@ -68,12 +60,10 @@ export interface PaymentPagination {
   hasNextPage: boolean;
   hasPreviousPage: boolean;
 }
-
 export interface PaymentHistoryResponse {
   payments: Payment[];
   pagination: PaymentPagination;
 }
-
 export interface MembershipPaymentItem {
   _id: string;
   amount: number;
@@ -81,12 +71,10 @@ export interface MembershipPaymentItem {
   paymentMethod: PaymentMethod;
   paidAt?: string | null;
 }
-
 export interface ProcessedRefundSummary {
   refundAmount: number;
   paymentId: string;
 }
-
 export interface MembershipPaymentSummary {
   membershipId: string;
   memberId: string;
@@ -101,7 +89,6 @@ export interface MembershipPaymentSummary {
   payments: MembershipPaymentItem[];
   processedRefunds: ProcessedRefundSummary[];
 }
-
 export interface CreateMembershipPaymentResult {
   payment: Payment;
   invoice: Invoice | null;
@@ -110,7 +97,6 @@ export interface CreateMembershipPaymentResult {
   remainingDue: number;
   alreadyProcessed: boolean;
 }
-
 export interface PaymentDashboardSummary {
   dateRange: {
     fromDate: string;
@@ -148,13 +134,11 @@ export interface PaymentDashboardSummary {
 
   recentTransactions: Payment[];
 }
-
 export interface PaymentDashboardFilters {
   fromDate?: string;
   toDate?: string;
   branchId?: string;
 }
-
 export interface OutstandingDuesMember {
   _id: string;
   memberId: string;
@@ -165,7 +149,6 @@ export interface OutstandingDuesMember {
   startDate?: string;
   endDate?: string;
 }
-
 export interface OutstandingDue {
   _id: string;
   membershipId: string;
@@ -179,13 +162,11 @@ export interface OutstandingDue {
   createdAt: string;
   member: OutstandingDuesMember;
 }
-
 export interface OutstandingDuesFilters {
   page?: number;
   limit?: number;
   branchId?: string;
 }
-
 export interface OutstandingDuesResponse {
   dues: OutstandingDue[];
   pagination: PaymentPagination;

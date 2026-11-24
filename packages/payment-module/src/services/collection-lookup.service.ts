@@ -1,4 +1,3 @@
-
 import type { AxiosInstance } from 'axios';
 import type { PaginatedApiResponse } from '../types/api.types';
 import type {

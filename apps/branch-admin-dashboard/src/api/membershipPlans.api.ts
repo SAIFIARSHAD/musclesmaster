@@ -1,6 +1,4 @@
-
 import { http } from './axiosInstance';
-
 import type {
   MembershipPlanListResponse,
 } from '../types/membership.types';

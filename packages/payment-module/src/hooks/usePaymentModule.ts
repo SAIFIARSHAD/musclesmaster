@@ -1,5 +1,4 @@
 import { useContext } from 'react';
-
 import { PaymentModuleContext } from './PaymentModuleProvider';
 
 export const usePaymentModule = () => {

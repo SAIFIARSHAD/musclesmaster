@@ -44,6 +44,14 @@ export default function MembersPage() {
   // Refresh trigger
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const activeCount = members.filter(
+  (member) => member.status === 'ACTIVE',
+).length;
+
+const inactiveCount = members.filter(
+  (member) => member.status === 'INACTIVE',
+).length;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -200,7 +208,7 @@ export default function MembersPage() {
           </div>
 
           <p className="mt-3 text-3xl font-bold text-green-600">
-            —
+            {loading ? '—' : activeCount}
           </p>
 
           <p className="mt-1 text-xs text-slate-400">
@@ -217,7 +225,7 @@ export default function MembersPage() {
           </div>
 
           <p className="mt-3 text-3xl font-bold text-slate-600">
-            —
+            {loading ? '—' : inactiveCount}
           </p>
 
           <p className="mt-1 text-xs text-slate-400">

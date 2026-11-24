@@ -1,6 +1,4 @@
-
 import { http } from './axiosInstance';
-
 export type MembershipPlanType =
   | 'MONTHLY'
   | 'QUARTERLY'
@@ -9,7 +7,6 @@ export type MembershipPlanType =
   | 'PERSONAL_TRAINING'
   | 'PREMIUM'
   | 'CORPORATE';
-
 export interface MembershipPlan {
   _id: string;
   planName: string;
@@ -22,7 +19,6 @@ export interface MembershipPlan {
   createdAt: string;
   updatedAt: string;
 }
-
 interface MembershipPlanListResponse {
   success: boolean;
   message: string;

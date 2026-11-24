@@ -1,9 +1,7 @@
-
 import { Users, Phone, Mail, Eye } from 'lucide-react';
 
 import type { Member } from '../../api/members.api';
 import MemberStatusBadge from './MemberStatusBadge';
-
 interface MembersTableProps {
   members: Member[];
   loading: boolean;

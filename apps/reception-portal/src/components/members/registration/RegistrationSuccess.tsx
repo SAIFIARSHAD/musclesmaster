@@ -1,6 +1,4 @@
-
 import { CheckCircle2, ArrowRight, UserRound, CreditCard } from 'lucide-react';
-
 interface RegistrationSuccessProps {
   memberName: string;
   memberId: string;

@@ -9,7 +9,6 @@ import {
   ArrowRight,
   ShieldCheck,
 } from 'lucide-react';
-
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {

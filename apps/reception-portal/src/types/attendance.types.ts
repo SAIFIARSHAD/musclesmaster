@@ -1,11 +1,9 @@
-
 export type AttendanceTab =
   | 'daily'
   | 'live'
   | 'history'
   | 'qr'
   | 'manual';
-
 export interface AttendanceMember {
   _id?: string;
   id?: string;
@@ -16,7 +14,6 @@ export interface AttendanceMember {
   mobile?: string;
   email?: string;
 }
-
 export interface AttendanceSession {
   _id: string;
   attendanceId?: string;
@@ -31,7 +28,6 @@ export interface AttendanceSession {
   voidReason?: string | null;
   voidedAt?: string | null;
 }
-
 export interface DailyAttendanceRecord {
   member: {
     id: string;
@@ -45,7 +41,6 @@ export interface DailyAttendanceRecord {
   totalDurationMinutes: number;
   sessions: AttendanceSession[];
 }
-
 export interface DailyAttendanceResponse {
   success: boolean;
   data: {
@@ -65,7 +60,6 @@ export interface DailyAttendanceResponse {
     };
   };
 }
-
 export interface LiveAttendanceRecord {
   attendanceId: string;
   member: AttendanceMember;
@@ -76,7 +70,6 @@ export interface LiveAttendanceRecord {
   isManual: boolean;
   status: string;
 }
-
 export interface LiveAttendanceResponse {
   success: boolean;
   data: {

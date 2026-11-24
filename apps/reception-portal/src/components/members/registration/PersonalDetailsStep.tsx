@@ -1,6 +1,4 @@
-
 import type { RegistrationForm } from './RegistrationFormTypes';
-
 interface PersonalDetailsStepProps {
   form: RegistrationForm;
   updateField: (field: keyof RegistrationForm, value: string) => void;

@@ -1,6 +1,4 @@
-
 import { http } from './axiosInstance';
-
 export interface Trainer {
   _id: string;
   name: string;
@@ -10,7 +8,6 @@ export interface Trainer {
   branchId: string;
   isActive: boolean;
 }
-
 interface TrainerListResponse {
   success: boolean;
   message: string;

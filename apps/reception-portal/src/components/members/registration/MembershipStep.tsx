@@ -1,7 +1,5 @@
-
 import type { MembershipPlan } from '../../../api/membershipPlans.api';
 import type { Trainer } from '../../../api/trainers.api';
-
 interface MembershipStepProps {
   plans: MembershipPlan[];
   trainers: Trainer[];

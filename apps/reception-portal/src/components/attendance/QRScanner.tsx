@@ -12,7 +12,6 @@ import {
   RefreshCw,
   AlertCircle,
 } from 'lucide-react';
-
 interface QRScannerProps {
   onScan: (decodedText: string) => Promise<void> | void;
 }

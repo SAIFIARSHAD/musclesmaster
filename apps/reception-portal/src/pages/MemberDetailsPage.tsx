@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -13,12 +12,10 @@ import {
   Loader2,
   UserCheck,
 } from 'lucide-react';
-
 import {
   getMemberByIdApi,
   type MemberDetails,
 } from '../api/members.api';
-
 import MemberStatusBadge from '../components/members/MemberStatusBadge';
 
 const formatDate = (value?: string) => {

@@ -1,10 +1,8 @@
 import type { AxiosInstance } from 'axios';
-
 import type {
   ApiResponse,
   PaginatedApiResponse,
 } from '../types/api.types';
-
 import type {
   CreateMembershipPaymentInput,
   CreateMembershipPaymentResult,

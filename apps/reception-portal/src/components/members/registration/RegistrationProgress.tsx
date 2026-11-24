@@ -1,6 +1,4 @@
-
 import { Check } from 'lucide-react';
-
 interface RegistrationProgressProps {
   currentStep: number;
   steps: string[];

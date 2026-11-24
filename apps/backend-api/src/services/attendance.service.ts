@@ -582,7 +582,7 @@ export const processQrAttendance = async (
         qrAttendanceCooldownUntil: lockUntil,
       },
     },
-    { new: true },
+    { new: true, updatePipeline: true, },
   );
 
   if (!lockedMember) {
@@ -646,7 +646,7 @@ export const processQrAttendance = async (
           qrAttendanceLockUntil: null,
         },
       },
-      { new: true },
+      { new: true, updatePipeline: true,},
     );
 
     if (!finalized) {
@@ -760,7 +760,7 @@ export const processManualMemberAttendance = async (
         manualAttendanceCooldownUntil: lockUntil,
       },
     },
-    { new: true },
+    { new: true, updatePipeline: true},
   );
 
   if (!lockedMember) {
@@ -837,7 +837,7 @@ export const processManualMemberAttendance = async (
             },
           },
         ],
-        { new: true },
+        { new: true, updatePipeline: true },
       );
 
       if (!attendance) {
@@ -901,7 +901,7 @@ const membership = await Membership.findOne({
           manualAttendanceLockUntil: null,
         },
       },
-      { new: true },
+      { new: true, updatePipeline: true },
     );
 
     if (!finalized) {
@@ -1028,6 +1028,7 @@ export const checkOutManually = async (
     ],
     {
       new: true,
+      updatePipeline: true,
     },
   );
 

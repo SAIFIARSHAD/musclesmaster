@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import {
   Menu,
   Bell,
@@ -11,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
-
 interface HeaderProps {
   onMenuClick: () => void;
 }
@@ -34,7 +32,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md sm:px-7">
+    <header className="sticky top-0 z-10 flex h-[76px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md sm:px-7">
       <div className="flex items-center gap-3">
         <button
           type="button"

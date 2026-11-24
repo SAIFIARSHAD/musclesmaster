@@ -21,6 +21,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 
 import { useAuth } from './context/AuthContext';
 import MembersPage from './pages/MembersPage';
+import MembershipPlansPage from './pages/MembershipPlansPage';
 
 const LoginRoute = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -90,6 +91,11 @@ const App = () => (
             path="/memberships"
             element={<MembershipsPage />}
           />
+
+          <Route
+          path="/membership-plans"
+          element={<MembershipPlansPage />}
+        />
 
           <Route
             path="/freeze-requests"

@@ -1,4 +1,3 @@
-
 export interface MemberLookupItem {
   _id: string;
   memberId: string;
@@ -7,7 +6,6 @@ export interface MemberLookupItem {
   email?: string;
   mobile: string;
 }
-
 export interface PendingMembershipLookupItem {
   _id: string;
   memberId: MemberLookupItem;
@@ -28,14 +26,11 @@ export interface PendingMembershipLookupItem {
   startDate: string;
   endDate: string;
 }
-
 export interface MemberSearchFilters {
   search: string;
   page?: number;
   limit?: number;
 }
-
-
 export interface PendingMembershipFilters {
   memberId?: string;
   status?: 'PENDING';

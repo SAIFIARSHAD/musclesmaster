@@ -1,10 +1,7 @@
-
 import { http } from './axiosInstance';
-
 // ==========================================
 // CREATE MEMBER
 // ==========================================
-
 export interface CreateMemberRequest {
   firstName: string;
   lastName: string;
@@ -20,7 +17,6 @@ export interface CreateMemberRequest {
   medicalConditions?: string[];
   trainerId?: string;
 }
-
 export interface CreatedMember {
   _id: string;
   memberId: string;
@@ -31,7 +27,6 @@ export interface CreatedMember {
   trainerId?: string | null;
   status: string;
 }
-
 interface CreateMemberResponse {
   success: boolean;
   message: string;
@@ -56,7 +51,6 @@ export const createMemberApi = async (
 // ==========================================
 // MEMBER LISTING
 // ==========================================
-
 export interface Member {
   _id: string;
   memberId: string;
@@ -73,7 +67,6 @@ export interface Member {
   createdAt?: string;
   updatedAt?: string;
 }
-
 export interface MemberListParams {
   page?: number;
   limit?: number;
@@ -81,21 +74,18 @@ export interface MemberListParams {
   status?: string;
   membershipPlan?: string;
 }
-
 export interface MemberPagination {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
 }
-
 interface MemberListResponse {
   success: boolean;
   message: string;
   data: Member[];
   pagination: MemberPagination;
 }
-
 export interface MemberListResult {
   members: Member[];
   pagination: MemberPagination;
@@ -130,7 +120,6 @@ export const getMembersApi = async (
 // ==========================================
 // MEMBER PROFILE / DETAILS
 // ==========================================
-
 export interface MemberProfile {
   _id?: string;
   memberId: string;
@@ -140,7 +129,6 @@ export interface MemberProfile {
   fitnessGoal?: string;
   medicalConditions?: string[];
 }
-
 export interface MemberUser {
   _id: string;
   name: string;
@@ -151,7 +139,6 @@ export interface MemberUser {
   isActive: boolean;
   createdAt?: string;
 }
-
 export interface MemberBranch {
   _id: string;
   name: string;
@@ -162,7 +149,6 @@ export interface MemberBranch {
   phone?: string;
   email?: string;
 }
-
 export interface MemberTrainer {
   _id: string;
   name: string;
@@ -171,7 +157,6 @@ export interface MemberTrainer {
   role: string;
   isActive: boolean;
 }
-
 export interface MemberDetails {
   member: Member;
   profile: MemberProfile | null;
@@ -199,7 +184,6 @@ export const getMemberByIdApi = async (
 // ==========================================
 // UPDATE MEMBER - RECEPTION PERMISSIONS
 // ==========================================
-
 export interface UpdateMemberRequest {
   firstName: string;
   lastName: string;

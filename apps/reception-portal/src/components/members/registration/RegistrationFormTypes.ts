@@ -1,5 +1,4 @@
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
-
 export interface RegistrationForm {
   firstName: string;
   lastName: string;

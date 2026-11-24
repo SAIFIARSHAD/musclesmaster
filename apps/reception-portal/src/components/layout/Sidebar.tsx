@@ -9,8 +9,8 @@ import {
   Wallet,
   Dumbbell,
   X,
+  Tags,
 } from 'lucide-react';
-
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
@@ -29,6 +29,7 @@ const navigation = [
       { title: 'Members', path: '/members', icon: UsersRound },
       { title: 'Register Member', path: '/members/new', icon: UserPlus },
       { title: 'Attendance', path: '/attendance', icon: CalendarCheck },
+      { title: 'Membership Plans', path: '/membership-plans', icon: Tags },
       { title: 'Memberships', path: '/memberships', icon: CreditCard },
     ],
   },
@@ -58,12 +59,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           type="button"
           aria-label="Close navigation"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-10 bg-slate-950/60 backdrop-blur-sm lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col border-r border-white/10 bg-[#14243B] text-white transition-transform duration-300 ${
+        className={`fixed inset-y-0 left-0 z-20 flex w-[264px] flex-col border-r border-white/10 bg-[#14243B] text-white transition-transform duration-300 ${
           open ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}
       >

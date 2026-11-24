@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { usePaymentModule } from '../hooks/usePaymentModule';
 import type {
@@ -608,8 +607,6 @@ useEffect(() => {
     </div>
   )}
 </section>
-
-
       {selectedMember && (
         <section style={cardStyle}>
           <h3 style={{ margin: '0 0 14px', fontSize: '16px' }}>

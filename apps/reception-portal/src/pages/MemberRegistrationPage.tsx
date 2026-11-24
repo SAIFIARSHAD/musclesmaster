@@ -1,13 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
-
 import {
   initialForm,
   registrationSteps,
   type RegistrationForm,
 } from '../components/members/registration/RegistrationFormTypes';
-
 import RegistrationProgress from '../components/members/registration/RegistrationProgress';
 import PersonalDetailsStep from '../components/members/registration/PersonalDetailsStep';
 import FitnessDetailsStep from '../components/members/registration/FitnessDetailsStep';

@@ -17,6 +17,7 @@ import MembershipsPage from './pages/MembershipsPage';
 import { PaymentDashboard } from '@repo/payment-module';
 import { PaymentCollectionForm } from '@repo/payment-module';
 import { PaymentHistory } from '@repo/payment-module';
+import MembershipPlansPage from './pages/MembershipPlansPage';
 
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
@@ -54,6 +55,11 @@ function App() {
               path="/attendance"
               element={<AttendancePage />}
             />
+
+            <Route
+                path="/membership-plans"
+                element={<MembershipPlansPage />}
+              />
 
               <Route
                 path="/memberships"

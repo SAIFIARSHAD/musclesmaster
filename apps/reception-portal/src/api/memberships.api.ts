@@ -1,10 +1,8 @@
-
 import { http } from './axiosInstance';
 
 // ==========================================
 // MEMBERSHIP TYPES
 // ==========================================
-
 export type MembershipStatus =
   | 'PENDING'
   | 'ACTIVE'
@@ -19,7 +17,6 @@ export interface MembershipMember {
   mobile: string;
   email?: string;
 }
-
 export interface MembershipPlanInfo {
   _id: string;
   planName: string;
@@ -28,13 +25,11 @@ export interface MembershipPlanInfo {
   price: number;
   ptIncluded?: boolean;
 }
-
 export interface MembershipBranch {
   _id: string;
   name: string;
   code?: string;
 }
-
 export interface Membership {
   _id: string;
   memberId: string | MembershipMember;
@@ -51,7 +46,6 @@ export interface Membership {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface MembershipSummary {
   total: number;
   active: number;
@@ -60,7 +54,6 @@ export interface MembershipSummary {
   frozen: number;
   expiringSoon: number;
 }
-
 export interface MembershipPagination {
   page: number;
   limit: number;
@@ -71,7 +64,6 @@ export interface MembershipPagination {
 // ==========================================
 // MEMBERSHIP LISTING
 // ==========================================
-
 export interface MembershipListParams {
   page?: number;
   limit?: number;
@@ -82,7 +74,6 @@ export interface MembershipListParams {
   branchId?: string;
   expiringSoon?: boolean;
 }
-
 interface MembershipListResponse {
   success: boolean;
   message: string;
@@ -90,7 +81,6 @@ interface MembershipListResponse {
   pagination: MembershipPagination;
   summary: MembershipSummary;
 }
-
 export interface MembershipListResult {
   memberships: Membership[];
   pagination: MembershipPagination;
@@ -126,18 +116,15 @@ export const getMembershipsApi = async (
     summary: response.data.summary,
   };
 };
-
 // ==========================================
 // ASSIGN MEMBERSHIP
 // ==========================================
-
 export interface AssignMembershipRequest {
   memberId: string;
   planId: string;
   startDate: string;
   notes?: string;
 }
-
 interface AssignMembershipResponse {
   success: boolean;
   message: string;
@@ -158,7 +145,6 @@ export const assignMembershipApi = async (
 // ==========================================
 // MEMBERSHIP DETAILS
 // ==========================================
-
 export interface MembershipHistory {
   _id: string;
   membershipId: string;
@@ -171,13 +157,11 @@ export interface MembershipHistory {
   metadata?: Record<string, unknown>;
   createdAt: string;
 }
-
 export interface MembershipDetails {
   membership: Membership;
   history: MembershipHistory[];
   paymentSummary?: Record<string, unknown>;
 }
-
 interface MembershipDetailsResponse {
   success: boolean;
   message: string;
@@ -197,12 +181,10 @@ export const getMembershipByIdApi = async (
 // ==========================================
 // RENEW MEMBERSHIP
 // ==========================================
-
 export interface RenewMembershipRequest {
   planId: string;
   notes?: string;
 }
-
 interface RenewMembershipResponse {
   success: boolean;
   message: string;
