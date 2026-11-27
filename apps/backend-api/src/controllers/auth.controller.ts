@@ -21,6 +21,7 @@ import {
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { AuditLog } from '../models/AuditLog.model';
 import { User } from '../models/User.model';
+import { Branch } from '../models/Branch.model';
 
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -78,6 +79,51 @@ const getUserEmail = async (userId: string): Promise<string> => {
   }
 };
 
+
+const addBranchName = async (user: unknown) => {
+  if (!user || typeof user !== 'object') {
+    return user;
+  }
+
+  const userData = user as Record<string, unknown>;
+
+  const rawBranchId = userData.branchId;
+
+  // Supports both ObjectId/string and populated branch objects.
+  let branchId: string | undefined;
+
+  if (typeof rawBranchId === 'string') {
+    branchId = rawBranchId;
+  } else if (
+    rawBranchId &&
+    typeof rawBranchId === 'object' &&
+    '_id' in rawBranchId
+  ) {
+    branchId = String(
+      (rawBranchId as { _id: unknown })._id
+    );
+  } else if (rawBranchId) {
+    branchId = String(rawBranchId);
+  }
+
+  if (!branchId || !mongoose.Types.ObjectId.isValid(branchId)) {
+    return {
+      ...userData,
+      branchName: 'Branch not assigned',
+    };
+  }
+
+  const branch = await Branch.findById(branchId)
+    .select('name')
+    .lean();
+
+  return {
+    ...userData,
+    branchName: branch?.name ?? 'Branch not assigned',
+  };
+};
+
+
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -95,6 +141,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const result = await loginUser(email, password, getClientMeta(req));
+    const userWithBranch = await addBranchName(result.user);
 
     res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
 
@@ -103,7 +150,8 @@ export const login = async (req: Request, res: Response) => {
       message: 'Login successful',
       data: {
         accessToken: result.accessToken,
-        user: result.user,
+        user: userWithBranch,
+        
       },
     });
   } catch (error: any) {
@@ -126,6 +174,7 @@ export const refreshTokenHandler = async (req: Request, res: Response) => {
     }
 
     const result = await rotateRefreshToken(refreshToken, getClientMeta(req));
+    const userWithBranch = await addBranchName(result.user);
 
     res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
 
@@ -134,7 +183,8 @@ export const refreshTokenHandler = async (req: Request, res: Response) => {
       message: 'Token refreshed successfully',
       data: {
         accessToken: result.accessToken,
-        user: result.user,
+        user: userWithBranch,
+        
       },
     });
   } catch (error: any) {
